@@ -1,0 +1,3 @@
+BIT = 1 
+BYTE = 8 * BIT 
+WORD_SIZE = 4 * BYTE 
