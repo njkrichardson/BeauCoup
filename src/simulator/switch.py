@@ -19,6 +19,9 @@
 # The paper uses B.
 
 import collections
+import random
+
+debug = False
 
 Packet = collections.namedtuple('Packet', ['source', 'destination', 'timestamp'])
 
@@ -63,38 +66,69 @@ def report_threshold(key):
 
 coupons = {}
 
+def flip_coin():
+    return bool(random.randint(0,1))
+
 def receive(packet):
+    key_data = None
+    coupon = 0
+    collected_coupons = 0
+
     for attr_func in attr_funcs:
-        key_data, coupon = attr_func(packet)
+        new_key_data, new_coupon = attr_func(packet)
+        if new_key_data is not None:
+            if collected_coupons == 0:
+                key_data = new_key_data
+                coupon = new_coupon
+                collected_coupons += 1
+            elif collected_coupons == 1:
+                if flip_coin():
+                    key_data = new_key_data
+                    coupon = new_coupon
+                collected_coupons += 1
+            else:
+                key_data = None
+                coupon = 0
+                collected_coupons += 1
+                break
+
+    if debug:
+        print("Coupons Collected: {}".format(collected_coupons))
         if key_data is not None:
             key_func, query_num, key_params = key_data
-            query_val = (query_num, key_func(packet))
-            if query_val in coupons:
-                coupons[query_val][coupon] = True
-                if count(coupons[query_val]) >= key_params["n"]:
-                    report_threshold(query_val)
-            else:
-                coupons[query_val] = [False]*key_params["m"]
-                coupons[query_val][coupon] = True
+            print("Updating query {} with coupon {}".format(query_num, coupon))
 
-packets = [
-        Packet(100, 200, 300),
-        Packet(100, 200, 400),
-        Packet(100, 200, 500),
-        Packet(100, 200, 600),
-        Packet(100, 200, 700),
-        Packet(100, 200, 800),
-        Packet(100, 200, 900),
-        Packet(100, 200, 1000),
-        Packet(100, 300, 100),
-        Packet(100, 300, 1100),
-        Packet(100, 300, 1200),
-        Packet(100, 300, 1300),
-        Packet(100, 300, 1400),
-        ]
+    if key_data is not None:
+        key_func, query_num, key_params = key_data
+        query_val = (query_num, key_func(packet))
+        if query_val in coupons:
+            coupons[query_val][coupon] = True
+            if count(coupons[query_val]) >= key_params["n"]:
+                report_threshold(query_val)
+        else:
+            coupons[query_val] = [False]*key_params["m"]
+            coupons[query_val][coupon] = True
 
-for p in packets:
-    print("Receiving: {}...".format(p))
-    receive(p)
+if __name__ == "__main__":
+    packets = [
+            Packet(100, 200, 300),
+            Packet(100, 200, 400),
+            Packet(100, 200, 500),
+            Packet(100, 200, 600),
+            Packet(100, 200, 700),
+            Packet(100, 200, 800),
+            Packet(100, 200, 900),
+            Packet(100, 200, 1000),
+            Packet(100, 300, 100),
+            Packet(100, 300, 1100),
+            Packet(100, 300, 1200),
+            Packet(100, 300, 1300),
+            Packet(100, 300, 1400),
+            ]
 
-print(coupons)
+    for p in packets:
+        if debug:
+            print("Receiving: {}...".format(p))
+        receive(p)
+
+    print(coupons)
