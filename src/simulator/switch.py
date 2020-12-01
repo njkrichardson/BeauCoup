@@ -1,62 +1,46 @@
-# A hash function takes in a collection of attributes,
-# and maps it to a pair (f,c).
-# The f is a function mapping packets to just the relevant part of the keys
-# (presumably via a hash).
-# The c is a coupon number.
-# f can equivalently be an index of a query number,
-# which then gives a look up of the relevant key mapping.
-# This pair can also be 0,
-# indicating that no query got fired for this attribute set.
-
-# Upon receiving a packet,
-# we pass it through multiple hash functions.
-# If none collect, we do nothing.
-# If exactly one collects, we pull that one.
-# If multiple collect, we:
-#   A: Collect one chosen at random.
-#   B: Collect one of two at random, do nothing otherwise.
-#   C: Do nothing.
-# The paper uses B.
-
 import collections
 import random
 
 debug = False
 
 Packet = collections.namedtuple('Packet', ['source', 'destination', 'timestamp'])
+Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n'])
 
 key_funcs = [
         lambda packet: packet.source,
         lambda packet: (packet.source, packet.destination),
         ]
 
+attr_funcs = [
+        lambda packet: packet.destination,
+        lambda packet: packet.timestamp,
+        ]
+
+proc_by_attr_funcs = [
+        (attr_funcs[0], [
+            Conf(0, key_funcs[0], 0.1, 4, 4),
+            ]
+            ),
+        (attr_funcs[1], [
+            Conf(1, key_funcs[0], 0.5, 5, 5),
+            Conf(2, key_funcs[1], 0.25, 4, 3),
+            ]
+            ),
+        ]
+
 def phash(key):
     v = hash(str(key))
-    return (v % 2**8) / 2**8
+    return (v % 2**16) / 2**16
 
-def attr_dst(packet):
-    val = phash(packet.destination)
-    if val < 0.1:
-        coupon = int(val*40)
-        return ((key_funcs[0], 0, {"m":4, "n":4}), coupon)
-    else:
-        return (None, -1)
-
-def attr_timestamp(packet):
-    val = phash(packet.timestamp)
-    if val < 0.5:
-        coupon = int(val*10)
-        return ((key_funcs[0], 1, {"m":5, "n":5}), coupon)
-    elif val < 0.75:
-        coupon = int((val-0.5)*16)
-        return ((key_funcs[1], 2, {"m":4, "n":3}), coupon)
-    else:
-        return (None, -1)
-
-attr_funcs = [
-        attr_dst,
-        attr_timestamp
-        ]
+def proc_attr(packet, proc_by_attr_func):
+    attr_func, confs = proc_by_attr_func
+    val = phash(attr_func(packet))
+    for c in confs:
+        if val < c.p:
+            coupon = int(val/c.p * c.m)
+            return (c, coupon)
+        val -= c.p
+    return (None, 0)
 
 def count(arr):
     return sum(arr)
@@ -70,43 +54,41 @@ def flip_coin():
     return bool(random.randint(0,1))
 
 def receive(packet):
-    key_data = None
+    chosen_query = None
     coupon = 0
     collected_coupons = 0
 
-    for attr_func in attr_funcs:
-        new_key_data, new_coupon = attr_func(packet)
-        if new_key_data is not None:
+    for proc_by_attr_func in proc_by_attr_funcs:
+        query_conf, sampled_coupon = proc_attr(packet, proc_by_attr_func)
+        if query_conf is not None:
             if collected_coupons == 0:
-                key_data = new_key_data
-                coupon = new_coupon
+                chosen_query = query_conf
+                coupon = sampled_coupon
                 collected_coupons += 1
             elif collected_coupons == 1:
                 if flip_coin():
-                    key_data = new_key_data
-                    coupon = new_coupon
+                    chosen_query = query_conf
+                    coupon = sampled_coupon
                 collected_coupons += 1
             else:
-                key_data = None
+                chosen_query = None
                 coupon = 0
                 collected_coupons += 1
                 break
 
     if debug:
         print("Coupons Collected: {}".format(collected_coupons))
-        if key_data is not None:
-            key_func, query_num, key_params = key_data
-            print("Updating query {} with coupon {}".format(query_num, coupon))
+        if chosen_query is not None:
+            print("Updating query {} with coupon {}".format(chosen_query.q, coupon))
 
-    if key_data is not None:
-        key_func, query_num, key_params = key_data
-        query_val = (query_num, key_func(packet))
+    if chosen_query is not None:
+        query_val = (chosen_query.q, chosen_query.key_func(packet))
         if query_val in coupons:
             coupons[query_val][coupon] = True
-            if count(coupons[query_val]) >= key_params["n"]:
+            if count(coupons[query_val]) >= chosen_query.n:
                 report_threshold(query_val)
         else:
-            coupons[query_val] = [False]*key_params["m"]
+            coupons[query_val] = [False]*chosen_query.m
             coupons[query_val][coupon] = True
 
 if __name__ == "__main__":
