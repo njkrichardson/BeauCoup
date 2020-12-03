@@ -7,8 +7,8 @@ class InvalidConfigurationException(Exception):
     pass
 
 Packet = collections.namedtuple('Packet', ['source', 'destination', 'timestamp'])
-Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n'])
-Query = collections.namedtuple('Query', ['key_index', 'attr_index', 'p', 'm', 'n'])
+Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n', 'query_name'])
+Query = collections.namedtuple('Query', ['key_index', 'attr_index', 'p', 'm', 'n', 'name'])
 
 def convert_queries(key_funcs, attr_funcs, queries):
     query_by_attr = collections.defaultdict(lambda: [])
@@ -26,7 +26,7 @@ def convert_queries(key_funcs, attr_funcs, queries):
             i, q = iq
             p_sum += q.p
             try:
-                conf = Conf(i, key_funcs[q.key_index], q.p, q.m, q.n)
+                conf = Conf(i, key_funcs[q.key_index], q.p, q.m, q.n, q.name)
             except IndexError:
                 raise InvalidConfigurationException("Key Function Index Out Of Range")
             query_confs.append(conf)
@@ -85,14 +85,18 @@ class Switch:
                     break
 
         if chosen_query is not None:
-            query_val = (chosen_query.q, chosen_query.key_func(packet))
-            if query_val in self.coupons:
-                self.coupons[query_val][coupon] = True
-                if count(self.coupons[query_val]) >= chosen_query.n:
-                    self.report_func()
+            q = chosen_query.q
+            if q not in self.coupons:
+                self.coupons[q] = {}
+
+            key_val = chosen_query.key_func(packet)
+            if key_val in self.coupons[q]:
+                self.coupons[q][key_val][coupon] = True
+                if count(self.coupons[q][key_val]) >= chosen_query.n:
+                    self.report_func(chosen_query.query_name, key_val)
             else:
-                self.coupons[query_val] = [False]*chosen_query.m
-                self.coupons[query_val][coupon] = True
+                self.coupons[q][key_val] = [False]*chosen_query.m
+                self.coupons[q][key_val][coupon] = True
 
     def reset(self):
         self.coupons = {}
@@ -109,12 +113,12 @@ if __name__ == "__main__":
             ]
 
     queries = [
-            Query(0, 0, 0.1, 4, 4),
-            Query(0, 1, 0.5, 5, 5),
-            Query(1, 1, 0.25, 4, 3),
+            Query(0, 0, 0.1, 4, 4, 'Spreaders'),
+            Query(0, 1, 0.5, 5, 5, 'Heavy-Hitters'),
+            Query(1, 1, 0.25, 4, 3, 'Heavy-Hitter Pairs'),
             ]
 
-    report = lambda: print("Query Hit A Value!")
+    report = lambda *args: print('Query "{}" hit threshold for key {}'.format(args[0], args[1]))
 
     s = Switch(key_funcs, attr_funcs, queries, report)
 
@@ -139,4 +143,5 @@ if __name__ == "__main__":
             print("Receiving: {}...".format(p))
         s.receive(p)
 
-    print(s.coupons)
+    for q in s.coupons:
+        print("{}: {}".format(q, s.coupons[q]))
