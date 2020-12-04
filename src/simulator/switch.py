@@ -10,30 +10,6 @@ Packet = collections.namedtuple('Packet', ['source', 'destination', 'timestamp']
 Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n', 'query_name'])
 Query = collections.namedtuple('Query', ['key_index', 'attr_index', 'p', 'm', 'n', 'name'])
 
-def convert_queries(key_funcs, attr_funcs, queries):
-    query_by_attr = collections.defaultdict(lambda: [])
-    for i, q in enumerate(queries):
-        query_by_attr[q.attr_index].append((i,q))
-    proc_by_attr_funcs = []
-    for attr_index in query_by_attr:
-        try:
-            attr_func = attr_funcs[attr_index]
-        except IndexError:
-            raise InvalidConfigurationException("Attribute Function Index Out Of Range")
-        p_sum = 0.0
-        query_confs = []
-        for iq in query_by_attr[attr_index]:
-            i, q = iq
-            p_sum += q.p
-            try:
-                conf = Conf(i, key_funcs[q.key_index], q.p, q.m, q.n, q.name)
-            except IndexError:
-                raise InvalidConfigurationException("Key Function Index Out Of Range")
-            query_confs.append(conf)
-        if p_sum > 1.0:
-            raise InvalidConfigurationException("Coupon Probabilities Exceed 1")
-        proc_by_attr_funcs.append((attr_func, query_confs))
-    return proc_by_attr_funcs
 
 def phash(key):
     v = hash(str(key))
@@ -45,11 +21,36 @@ def count(arr):
 def flip_coin():
     return bool(random.randint(0,1))
 
-class Switch:
-    def __init__(self, key_funcs, attr_funcs, queries, report_func):
-        self.proc_by_attr_funcs = convert_queries(key_funcs, attr_funcs, queries)
-        self.report_func = report_func
+class BaseSwitch:
+    def __init__(self, key_funcs, attr_funcs, queries):
+        self.proc_by_attr_funcs = BaseSwitch.convert_queries(key_funcs, attr_funcs, queries)
         self.coupons = {}
+
+    @classmethod
+    def convert_queries(cls, key_funcs, attr_funcs, queries):
+        query_by_attr = collections.defaultdict(lambda: [])
+        for i, q in enumerate(queries):
+            query_by_attr[q.attr_index].append((i,q))
+        proc_by_attr_funcs = []
+        for attr_index in query_by_attr:
+            try:
+                attr_func = attr_funcs[attr_index]
+            except IndexError:
+                raise InvalidConfigurationException("Attribute Function Index Out Of Range")
+            p_sum = 0.0
+            query_confs = []
+            for iq in query_by_attr[attr_index]:
+                i, q = iq
+                p_sum += q.p
+                try:
+                    conf = Conf(i, key_funcs[q.key_index], q.p, q.m, q.n, q.name)
+                except IndexError:
+                    raise InvalidConfigurationException("Key Function Index Out Of Range")
+                query_confs.append(conf)
+            if p_sum > 1.0:
+                raise InvalidConfigurationException("Coupon Probabilities Exceed 1")
+            proc_by_attr_funcs.append((attr_func, query_confs))
+        return proc_by_attr_funcs
 
     def proc_attr(self, packet, proc_by_attr_func):
         attr_func, confs = proc_by_attr_func
@@ -93,13 +94,31 @@ class Switch:
             if key_val in self.coupons[q]:
                 self.coupons[q][key_val][coupon] = True
                 if count(self.coupons[q][key_val]) >= chosen_query.n:
-                    self.report_func(chosen_query.query_name, key_val)
+                    self.report_key(chosen_query.query_name, key_val)
             else:
                 self.coupons[q][key_val] = [False]*chosen_query.m
                 self.coupons[q][key_val][coupon] = True
 
     def reset(self):
         self.coupons = {}
+
+    def report_key(self, *args):
+        raise NotImplementedError("Switch class does not implement message sending")
+
+class BaseServer:
+    def __init__(self, *args):
+        pass
+
+    def receive_message(self, *args):
+        raise NotImplementedError("Server class does not implement message reception.")
+
+
+# =======
+class SingleStandaloneSwitch(BaseSwitch):
+    def report_key(self, query_name, key):
+        print('Query "{}" hit threshold for key {}'.format(query_name, key))
+
+# =======
 
 if __name__ == "__main__":
     key_funcs = [
@@ -118,9 +137,8 @@ if __name__ == "__main__":
             Query(1, 1, 0.25, 4, 3, 'Heavy-Hitter Pairs'),
             ]
 
-    report = lambda *args: print('Query "{}" hit threshold for key {}'.format(args[0], args[1]))
 
-    s = Switch(key_funcs, attr_funcs, queries, report)
+    s = SingleStandaloneSwitch(key_funcs, attr_funcs, queries)
 
     packets = [
             Packet(100, 200, 300),
