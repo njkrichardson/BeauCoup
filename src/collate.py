@@ -3,7 +3,7 @@ import os
 import requests 
 from urllib.parse import urlparse 
 
-from constants import PCAP_TIMES_PATH, PCAP_STATS_PATH, PCAP_PATH, SRC_PATH 
+from constants import PCAP_TIMES_PATH, PCAP_STATS_PATH, PCAP_PATH, SRC_PATH, DATA_PATH
 
 parser = argparse.ArgumentParser() 
 parser.add_argument('--all', type=bool, default=True)
@@ -31,15 +31,14 @@ if __name__=='__main__':
     except: 
         print('Ensure environment variables CAIDA_USR, CAIDA_KEY are set') 
 
-    data_dir_path = os.path.join(SRC_PATH, "data")
-    if not os.path.exists(data_dir_path): 
-        if args.v: print("Data directory not found, creating {data_dir_path}") 
-        os.makedirs(data_dir_path) 
+    if not os.path.exists(DATA_PATH): 
+        if args.v: print("Data directory not found, creating {DATA_PATH}") 
+        os.makedirs(DATA_PATH) 
 
     for url in paths: 
         if args.v: print(f"Loading from url {url}...")
         fname = os.path.basename(urlparse(url).path)
-        output_fname = os.path.join(data_dir_path, fname) 
+        output_fname = os.path.join(DATA_PATH, fname) 
         r = requests.get(url, auth=(caida_usr, caida_key))
         if r.status_code == 200 and args.v: 
             print(f"Success... writing to output {output_fname}")
