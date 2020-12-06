@@ -9,6 +9,7 @@ class InvalidConfigurationException(Exception):
 Packet = collections.namedtuple('Packet', ['source', 'destination', 'timestamp'])
 Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n', 'query_name'])
 Query = collections.namedtuple('Query', ['key_index', 'attr_index', 'p', 'm', 'n', 'name'])
+RawQuery = collections.namedtuple('RawQuery', ['key_index', 'attr_index', 'threshold', 'name'])
 
 
 def phash(key):
@@ -124,6 +125,11 @@ class EchoServer(BaseServer):
     def receive_message(self, message):
         print(message)
 
+def build_standalone_switches(key_funcs, attr_funcs, raw_queries, n=1):
+    queries = compile_queries(raw_queries)
+    switches = [SingleStandaloneSwitch(key_funcs, attr_funcs, queries) for i in n]
+    server = EchoServer()
+    return switches, server
 
 # =======
 # A theoretically correct solution,
@@ -136,10 +142,6 @@ class ZeroErrorSwitch(BaseSwitch):
 
     def receive(self, packet):
         parent_server.receive_message(packet)
-
-def make_tree():
-    tree = collections.defaultdict(make_tree)
-    return tree
 
 class ZeroErrorServer(BaseServer):
     def __init__(self, key_funcs, attr_funcs, queries):
@@ -156,13 +158,15 @@ class ZeroErrorServer(BaseServer):
             if len(self.table[q.name][kf]) > q.n:
                 print('Query "{}" hit threshold for key {}'.format(query_name, kf))
 
-# =======
-switches = {
-        "Standalone Switch": SingleStandaloneSwitch,
-        }
+def build_zeroerror(key_funcs, attr_funcs, raw_queries, n=1):
+    server = ZeroErrorServer(key_funcs, attr_funcs, raw_queries)
+    switches = [ZeroErrorSwitch(server) for i in n]
+    return switches, server
 
-servers = {
-        "Echo Server": EchoServer,
+# =======
+build_functions = {
+        "Standalone": build_standalone_switches,
+        "ZeroError": build_standalone_switches,
         }
 
 # =======
