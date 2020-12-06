@@ -3,8 +3,6 @@ from objects import Packet, Query, SingleStandaloneSwitch
 def parse_file(fname):
     return []
 
-class Simulator:
-
 
 if __name__ == "__main__":
     key_funcs = [

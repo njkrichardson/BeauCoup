@@ -113,16 +113,56 @@ class BaseServer:
         raise NotImplementedError("Server class does not implement message reception.")
 
 # =======
+# Some basic implementations:
+# All these do is run the earlier code and do some printing.
+# No additional logic.
 class SingleStandaloneSwitch(BaseSwitch):
     def report_key(self, query_name, key):
         print('Query "{}" hit threshold for key {}'.format(query_name, key))
 
+class EchoServer(BaseServer):
+    def receive_message(self, message):
+        print(message)
+
+
+# =======
+# A theoretically correct solution,
+# but one with massive memory and communication requirements.
+# However, it gets the exact correct solution,
+# so it is useful for comparison.
+class ZeroErrorSwitch(BaseSwitch):
+    def __init__(self, parent_server):
+        self.parent_server = parent_server
+
+    def receive(self, packet):
+        parent_server.receive_message(packet)
+
+def make_tree():
+    tree = collections.defaultdict(make_tree)
+    return tree
+
+class ZeroErrorServer(BaseServer):
+    def __init__(self, key_funcs, attr_funcs, queries):
+        self.key_funcs = key_funcs
+        self.attr_funcs = attr_funcs
+        self.queries = queries
+        self.table = collections.defaultdict(lambda: collections.defaultdict(lambda: set()))
+
+    def receive(self, packet):
+        for q in self.queries:
+            kf = self.key_funcs[q.key_index]
+            af = self.attr_funcs[q.attr_index]
+            self.table[q.name][kf].add(af)
+            if len(self.table[q.name][kf]) > q.n:
+                print('Query "{}" hit threshold for key {}'.format(query_name, kf))
+
+# =======
 switches = {
         "Standalone Switch": SingleStandaloneSwitch,
         }
 
 servers = {
-
+        "Echo Server": EchoServer,
         }
 
 # =======
