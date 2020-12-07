@@ -1,57 +1,47 @@
 import collections
 import random
 
+from compiler import compile_queries
 from packet import Packet, parse_packet_stream
+from query import Query, RawQuery
+from utils import phash, count, flip_coin
 
-debug = False #TODO logging 
+debug = False #TODO logging
 
 class InvalidConfigurationException(Exception):
     pass
 
 Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n', 'query_name'])
-Query = collections.namedtuple('Query', ['key_index', 'attr_index', 'p', 'm', 'n', 'name'])
-RawQuery = collections.namedtuple('RawQuery', ['key_index', 'attr_index', 'threshold', 'collection_prob', 'name'])
 
-def phash(key):
-    v = hash(str(key))
-    return (v % 2**16) / 2**16
-
-def count(arr):
-    return sum(arr)
-
-def flip_coin():
-    return bool(random.randint(0,1))
+def convert_queries(key_funcs, attr_funcs, queries):
+    query_by_attr = collections.defaultdict(lambda: [])
+    for i, q in enumerate(queries):
+        query_by_attr[q.attr_index].append((i,q))
+    proc_by_attr_funcs = []
+    for attr_index in query_by_attr:
+        try:
+            attr_func = attr_funcs[attr_index]
+        except IndexError:
+            raise InvalidConfigurationException("Attribute Function Index Out Of Range")
+        p_sum = 0.0
+        query_confs = []
+        for iq in query_by_attr[attr_index]:
+            i, q = iq
+            p_sum += q.p
+            try:
+                conf = Conf(i, key_funcs[q.key_index], q.p, q.m, q.n, q.name)
+            except IndexError:
+                raise InvalidConfigurationException("Key Function Index Out Of Range")
+            query_confs.append(conf)
+        if p_sum > 1.0:
+            raise InvalidConfigurationException("Coupon Probabilities Exceed 1")
+        proc_by_attr_funcs.append((attr_func, query_confs))
+    return proc_by_attr_funcs
 
 class BaseSwitch:
     def __init__(self, key_funcs, attr_funcs, queries):
-        self.proc_by_attr_funcs = BaseSwitch.convert_queries(key_funcs, attr_funcs, queries)
+        self.proc_by_attr_funcs = convert_queries(key_funcs, attr_funcs, queries)
         self.coupons = {}
-
-    @classmethod
-    def convert_queries(cls, key_funcs, attr_funcs, queries):
-        query_by_attr = collections.defaultdict(lambda: [])
-        for i, q in enumerate(queries):
-            query_by_attr[q.attr_index].append((i,q))
-        proc_by_attr_funcs = []
-        for attr_index in query_by_attr:
-            try:
-                attr_func = attr_funcs[attr_index]
-            except IndexError:
-                raise InvalidConfigurationException("Attribute Function Index Out Of Range")
-            p_sum = 0.0
-            query_confs = []
-            for iq in query_by_attr[attr_index]:
-                i, q = iq
-                p_sum += q.p
-                try:
-                    conf = Conf(i, key_funcs[q.key_index], q.p, q.m, q.n, q.name)
-                except IndexError:
-                    raise InvalidConfigurationException("Key Function Index Out Of Range")
-                query_confs.append(conf)
-            if p_sum > 1.0:
-                raise InvalidConfigurationException("Coupon Probabilities Exceed 1")
-            proc_by_attr_funcs.append((attr_func, query_confs))
-        return proc_by_attr_funcs
 
     def proc_attr(self, packet, proc_by_attr_func):
         attr_func, confs = proc_by_attr_func
@@ -63,7 +53,7 @@ class BaseSwitch:
             val -= c.p
         return (None, 0)
 
-    def receive(self, packet):
+    def select_key_and_coupon(self, packet):
         chosen_query = None
         coupon = 0
         collected_coupons = 0
@@ -85,7 +75,9 @@ class BaseSwitch:
                     coupon = 0
                     collected_coupons += 1
                     break
+        return chosen_query, coupon
 
+    def update_coupon_table(self, chosen_query, coupon, packet):
         if chosen_query is not None:
             q = chosen_query.q
             if q not in self.coupons:
@@ -93,12 +85,17 @@ class BaseSwitch:
 
             key_val = chosen_query.key_func(packet)
             if key_val in self.coupons[q]:
-                self.coupons[q][key_val][coupon] = True
-                if count(self.coupons[q][key_val]) >= chosen_query.n:
+                self.coupons[q][key_val][1][coupon] = True
+                if count(self.coupons[q][key_val][1]) >= chosen_query.n and not self.coupons[q][key_val][0]:
                     self.report_key(chosen_query.query_name, key_val)
+                    self.coupons[q][key_val][0] = True
             else:
-                self.coupons[q][key_val] = [False]*chosen_query.m
-                self.coupons[q][key_val][coupon] = True
+                self.coupons[q][key_val] = [False, [False]*chosen_query.m]
+                self.coupons[q][key_val][1][coupon] = True
+
+    def receive(self, packet):
+        chosen_query, coupon = self.select_key_and_coupon(packet)
+        self.update_coupon_table(chosen_query, coupon, packet)
 
     def reset(self):
         self.coupons = {}
@@ -127,7 +124,7 @@ class EchoServer(BaseServer):
 
 def build_standalone_switches(key_funcs, attr_funcs, raw_queries, n=1):
     queries = compile_queries(raw_queries)
-    switches = [SingleStandaloneSwitch(key_funcs, attr_funcs, queries) for i in n]
+    switches = [SingleStandaloneSwitch(key_funcs, attr_funcs, queries) for i in range(n)]
     server = EchoServer()
     return switches, server
 
@@ -148,7 +145,7 @@ class ZeroErrorServer(BaseServer):
         self.key_funcs = key_funcs
         self.attr_funcs = attr_funcs
         self.queries = queries
-        self.table = collections.defaultdict(lambda: collections.defaultdict(lambda: set()))
+        self.table = collections.defaultdict(lambda: collections.defaultdict(lambda: [False, set()]))
 
     def receive_message(self, packet):
         for q in self.queries:
@@ -156,9 +153,10 @@ class ZeroErrorServer(BaseServer):
             key = kf(packet)
             af = self.attr_funcs[q.attr_index]
             attr = af(packet)
-            self.table[q.name][key].add(attr)
-            if len(self.table[q.name][key]) > q.threshold:
+            self.table[q.name][key][1].add(attr)
+            if len(self.table[q.name][key][1]) > q.threshold and not self.table[q.name][key][0]:
                 print('Query "{}" hit threshold for key {}'.format(q.name, key))
+                self.table[q.name][key][0] = True
 
 def build_zeroerror(key_funcs, attr_funcs, raw_queries, n=1):
     server = ZeroErrorServer(key_funcs, attr_funcs, raw_queries)
@@ -166,9 +164,59 @@ def build_zeroerror(key_funcs, attr_funcs, raw_queries, n=1):
     return switches, server
 
 # =======
+# Probabilistical Message Passing:
+# The switches in this model hash the packets,
+# and then pass them on if they would be collected as a coupon.
+# The individual switches use no memory,
+# but the communication cost might be large.
+class PMPSwitch(BaseSwitch):
+    def __init__(self, parent_server, *args):
+        super().__init__(*args)
+        self.parent_server = parent_server
+
+    def receive(self, packet):
+        chosen_query, coupon = self.select_key_and_coupon(packet)
+
+        if chosen_query is not None:
+            q = chosen_query.q
+            key_val = chosen_query.key_func(packet)
+            self.report_key((chosen_query, key_val, coupon))
+
+    def report_key(self, msg):
+        self.parent_server.receive_message(msg)
+
+class PMPServer(BaseServer):
+    def __init__(self):
+        self.coupons = {}
+
+    def receive_message(self, msg):
+        cq, key_val, coupon = msg
+
+        q = cq.q
+        if q not in self.coupons:
+            self.coupons[q] = {}
+
+        if key_val in self.coupons[q]:
+            self.coupons[q][key_val][1][coupon] = True
+            if count(self.coupons[q][key_val][1]) >= cq.n and not self.coupons[q][key_val][0]:
+                print('Query "{}" hit threshold for key {}'.format(cq.query_name, key_val))
+                self.coupons[q][key_val][0] = True
+        else:
+            self.coupons[q][key_val] = [False, [False]*cq.m]
+            self.coupons[q][key_val][1][coupon] = True
+
+def build_pmp(key_funcs, attr_funcs, raw_queries, n=1):
+    queries = compile_queries(raw_queries)
+    server = PMPServer()
+    switches = [PMPSwitch(server, key_funcs, attr_funcs, queries) for i in range(n)]
+    return switches, server
+
+
+# =======
 build_functions = {
         "Standalone": build_standalone_switches,
         "ZeroError": build_zeroerror,
+        "PMP": build_pmp,
         }
 
 # =======
@@ -191,10 +239,13 @@ if __name__ == "__main__":
             ]
 
     raw_queries = [
-            RawQuery(0, 0, 2, 0.1, 'Test'),
+            RawQuery(0, 1, 100, 0.1, 'Test'),
             ]
 
-    switches, server = build_zeroerror(key_funcs, attr_funcs, raw_queries, 3)
+    n = 3
+    switches, server = build_pmp(key_funcs, attr_funcs, raw_queries, n)
+    # switches, server = build_zeroerror(key_funcs, attr_funcs, raw_queries, n)
+    # switches, server = build_standalone_switches(key_funcs, attr_funcs, raw_queries, n)
 
     packets = parse_packet_stream(n_packets=10000)
 
@@ -205,7 +256,7 @@ if __name__ == "__main__":
             print("Receiving: {}...".format(p))
         switches[i].receive(p)
         i += 1
-        i = i % 3
+        i = i % n
 
-    for q in server.table:
-        print("{}: {}".format(q, server.table[q]))
+#    for q in server.coupons:
+#        print("{}: {}".format(q, server.coupons[q]))

@@ -39,3 +39,24 @@ def load_packet_stream(n_packets: int = 1, ts_range: tuple = None, path: str = D
         print(e) 
     return packet_stream 
 
+def phash(key):
+    # Hashes an arbitrary key to a random value between 0 and 1.
+    # Could probably be made cleaner.
+    v = hash(str(key))
+    return (v % 2**16) / 2**16
+
+def count(arr):
+    # Counts the number of true boolean values in an array.
+    return sum(arr)
+
+def flip_coin():
+    # Flips a random coin.
+    # It would be nice to make this deterministic but pseudorandom,
+    # so that our code has no truly random components.
+    return bool(random.randint(0,1))
+
+def table_size(table):
+    total = 0
+    for k in table:
+        total += len(table)
+    return total
