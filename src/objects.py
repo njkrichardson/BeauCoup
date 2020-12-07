@@ -1,16 +1,16 @@
 import collections
 import random
 
+from compiler import compile_queries
 from packet import Packet, parse_packet_stream
+from query import Query, RawQuery
 
-debug = False #TODO logging 
+debug = False #TODO logging
 
 class InvalidConfigurationException(Exception):
     pass
 
 Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n', 'query_name'])
-Query = collections.namedtuple('Query', ['key_index', 'attr_index', 'p', 'm', 'n', 'name'])
-RawQuery = collections.namedtuple('RawQuery', ['key_index', 'attr_index', 'threshold', 'collection_prob', 'name'])
 
 def phash(key):
     v = hash(str(key))
@@ -127,7 +127,7 @@ class EchoServer(BaseServer):
 
 def build_standalone_switches(key_funcs, attr_funcs, raw_queries, n=1):
     queries = compile_queries(raw_queries)
-    switches = [SingleStandaloneSwitch(key_funcs, attr_funcs, queries) for i in n]
+    switches = [SingleStandaloneSwitch(key_funcs, attr_funcs, queries) for i in range(n)]
     server = EchoServer()
     return switches, server
 
@@ -173,7 +173,7 @@ def build_zeroerror(key_funcs, attr_funcs, raw_queries, n=1):
 # but the communication cost might be large.
 class PMPSwitch(BaseSwitch):
     def __init__(self, parent_server, *args):
-        super().__init__(self, *args)
+        super().__init__(*args)
         self.parent_server = parent_server
 
     def receive(self, packet):
@@ -205,13 +205,13 @@ class PMPSwitch(BaseSwitch):
             self.report_key((chosen_query, key_val, coupon))
 
     def report_key(self, msg):
-        parent_server.receive_message(msg)
+        self.parent_server.receive_message(msg)
 
 class PMPServer(BaseServer):
     def __init__(self):
         self.coupons = {}
 
-    def receive_message(msg):
+    def receive_message(self, msg):
         cq, key_val, coupon = msg
 
         q = cq.q
@@ -220,15 +220,16 @@ class PMPServer(BaseServer):
 
         if key_val in self.coupons[q]:
             self.coupons[q][key_val][coupon] = True
-            if count(self.coupons[q][key_val]) >= chosen_query.n:
+            if count(self.coupons[q][key_val]) >= cq.n:
+                print('Query "{}" hit threshold for key {}'.format(cq.query_name, key_val))
         else:
-            self.coupons[q][key_val] = [False]*chosen_query.m
+            self.coupons[q][key_val] = [False]*cq.m
             self.coupons[q][key_val][coupon] = True
 
 def build_pmp(key_funcs, attr_funcs, raw_queries, n=1):
     queries = compile_queries(raw_queries)
     server = PMPServer()
-    switches = [PMPSwitch(server, key_funcs, attr_funcs, queries) for i in n]
+    switches = [PMPSwitch(server, key_funcs, attr_funcs, queries) for i in range(n)]
     return switches, server
 
 
@@ -259,10 +260,13 @@ if __name__ == "__main__":
             ]
 
     raw_queries = [
-            RawQuery(0, 0, 2, 0.1, 'Test'),
+            RawQuery(0, 1, 100, 0.1, 'Test'),
             ]
 
-    switches, server = build_zeroerror(key_funcs, attr_funcs, raw_queries, 3)
+    n = 3
+    switches, server = build_pmp(key_funcs, attr_funcs, raw_queries, n)
+    # switches, server = build_zeroerror(key_funcs, attr_funcs, raw_queries, n)
+    # switches, server = build_standalone_switches(key_funcs, attr_funcs, raw_queries, n)
 
     packets = parse_packet_stream(n_packets=10000)
 
@@ -273,7 +277,7 @@ if __name__ == "__main__":
             print("Receiving: {}...".format(p))
         switches[i].receive(p)
         i += 1
-        i = i % 3
+        i = i % n
 
-    for q in server.table:
-        print("{}: {}".format(q, server.table[q]))
+#    for q in server.coupons:
+#        print("{}: {}".format(q, server.coupons[q]))

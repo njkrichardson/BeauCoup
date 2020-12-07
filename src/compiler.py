@@ -4,7 +4,7 @@ from typing import Union
 import numpy as np 
 
 from constants import WORD_SIZE
-from query import RawQuery
+from query import Query, RawQuery
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING) 
@@ -47,3 +47,10 @@ def compiler(raw_query: RawQuery) -> tuple:
     (m, p, n) = configs[0]
     return (m, p, n) 
 
+def compile_queries(raw_queries: list) -> list:
+    queries = []
+    for rq in raw_queries:
+        m, p, n = compiler(rq)
+        queries += [Query(rq.key_index, rq.attr_index, p, m, n, rq.name), ]
+    print(queries)
+    return queries
