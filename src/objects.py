@@ -53,7 +53,7 @@ class BaseSwitch:
             val -= c.p
         return (None, 0)
 
-    def receive(self, packet):
+    def select_key_and_coupon(self, packet):
         chosen_query = None
         coupon = 0
         collected_coupons = 0
@@ -75,7 +75,9 @@ class BaseSwitch:
                     coupon = 0
                     collected_coupons += 1
                     break
+        return chosen_query, coupon
 
+    def update_coupon_table(self, chosen_query, coupon, packet):
         if chosen_query is not None:
             q = chosen_query.q
             if q not in self.coupons:
@@ -89,6 +91,10 @@ class BaseSwitch:
             else:
                 self.coupons[q][key_val] = [False]*chosen_query.m
                 self.coupons[q][key_val][coupon] = True
+
+    def receive(self, packet):
+        chosen_query, coupon = self.select_key_and_coupon(packet)
+        self.update_coupon_table(chosen_query, coupon, packet)
 
     def reset(self):
         self.coupons = {}
@@ -167,27 +173,7 @@ class PMPSwitch(BaseSwitch):
         self.parent_server = parent_server
 
     def receive(self, packet):
-        chosen_query = None
-        coupon = 0
-        collected_coupons = 0
-
-        for proc_by_attr_func in self.proc_by_attr_funcs:
-            query_conf, sampled_coupon = self.proc_attr(packet, proc_by_attr_func)
-            if query_conf is not None:
-                if collected_coupons == 0:
-                    chosen_query = query_conf
-                    coupon = sampled_coupon
-                    collected_coupons += 1
-                elif collected_coupons == 1:
-                    if flip_coin():
-                        chosen_query = query_conf
-                        coupon = sampled_coupon
-                    collected_coupons += 1
-                else:
-                    chosen_query = None
-                    coupon = 0
-                    collected_coupons += 1
-                    break
+        chosen_query, coupon = self.select_key_and_coupon(packet)
 
         if chosen_query is not None:
             q = chosen_query.q
