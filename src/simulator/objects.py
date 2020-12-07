@@ -11,7 +11,6 @@ Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n', 
 Query = collections.namedtuple('Query', ['key_index', 'attr_index', 'p', 'm', 'n', 'name'])
 RawQuery = collections.namedtuple('RawQuery', ['key_index', 'attr_index', 'threshold', 'name'])
 
-
 def phash(key):
     v = hash(str(key))
     return (v % 2**16) / 2**16
@@ -164,9 +163,77 @@ def build_zeroerror(key_funcs, attr_funcs, raw_queries, n=1):
     return switches, server
 
 # =======
+# Probabilistical Message Passing:
+# The switches in this model hash the packets,
+# and then pass them on if they would be collected as a coupon.
+# The individual switches use no memory,
+# but the communication cost might be large.
+class PMPSwitch(BaseSwitch):
+    def __init__(self, parent_server, *args):
+        super().__init__(self, *args)
+        self.parent_server = parent_server
+
+    def receive(self, packet):
+        chosen_query = None
+        coupon = 0
+        collected_coupons = 0
+
+        for proc_by_attr_func in self.proc_by_attr_funcs:
+            query_conf, sampled_coupon = self.proc_attr(packet, proc_by_attr_func)
+            if query_conf is not None:
+                if collected_coupons == 0:
+                    chosen_query = query_conf
+                    coupon = sampled_coupon
+                    collected_coupons += 1
+                elif collected_coupons == 1:
+                    if flip_coin():
+                        chosen_query = query_conf
+                        coupon = sampled_coupon
+                    collected_coupons += 1
+                else:
+                    chosen_query = None
+                    coupon = 0
+                    collected_coupons += 1
+                    break
+
+        if chosen_query is not None:
+            q = chosen_query.q
+            key_val = chosen_query.key_func(packet)
+            self.report_key((chosen_query, key_val, coupon))
+
+    def report_key(self, msg):
+        parent_server.receive_message(msg)
+
+class PMPServer(BaseServer):
+    def __init__(self):
+        self.coupons = {}
+
+    def receive_message(msg):
+        cq, key_val, coupon = msg
+
+        q = cq.q
+        if q not in self.coupons:
+            self.coupons[q] = {}
+
+        if key_val in self.coupons[q]:
+            self.coupons[q][key_val][coupon] = True
+            if count(self.coupons[q][key_val]) >= chosen_query.n:
+        else:
+            self.coupons[q][key_val] = [False]*chosen_query.m
+            self.coupons[q][key_val][coupon] = True
+
+def build_pmp(key_funcs, attr_funcs, raw_queries, n=1):
+    queries = compile_queries(raw_queries)
+    server = PMPServer()
+    switches = [PMPSwitch(server, key_funcs, attr_funcs, queries) for i in n]
+    return switches, server
+
+
+# =======
 build_functions = {
         "Standalone": build_standalone_switches,
         "ZeroError": build_standalone_switches,
+        "PMP": build_pmp,
         }
 
 # =======
