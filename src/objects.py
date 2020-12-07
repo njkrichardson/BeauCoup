@@ -4,6 +4,7 @@ import random
 from compiler import compile_queries
 from packet import Packet, parse_packet_stream
 from query import Query, RawQuery
+from utils import phash, count, flip_coin
 
 debug = False #TODO logging
 
@@ -12,46 +13,35 @@ class InvalidConfigurationException(Exception):
 
 Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n', 'query_name'])
 
-def phash(key):
-    v = hash(str(key))
-    return (v % 2**16) / 2**16
-
-def count(arr):
-    return sum(arr)
-
-def flip_coin():
-    return bool(random.randint(0,1))
+def convert_queries(key_funcs, attr_funcs, queries):
+    query_by_attr = collections.defaultdict(lambda: [])
+    for i, q in enumerate(queries):
+        query_by_attr[q.attr_index].append((i,q))
+    proc_by_attr_funcs = []
+    for attr_index in query_by_attr:
+        try:
+            attr_func = attr_funcs[attr_index]
+        except IndexError:
+            raise InvalidConfigurationException("Attribute Function Index Out Of Range")
+        p_sum = 0.0
+        query_confs = []
+        for iq in query_by_attr[attr_index]:
+            i, q = iq
+            p_sum += q.p
+            try:
+                conf = Conf(i, key_funcs[q.key_index], q.p, q.m, q.n, q.name)
+            except IndexError:
+                raise InvalidConfigurationException("Key Function Index Out Of Range")
+            query_confs.append(conf)
+        if p_sum > 1.0:
+            raise InvalidConfigurationException("Coupon Probabilities Exceed 1")
+        proc_by_attr_funcs.append((attr_func, query_confs))
+    return proc_by_attr_funcs
 
 class BaseSwitch:
     def __init__(self, key_funcs, attr_funcs, queries):
-        self.proc_by_attr_funcs = BaseSwitch.convert_queries(key_funcs, attr_funcs, queries)
+        self.proc_by_attr_funcs = convert_queries(key_funcs, attr_funcs, queries)
         self.coupons = {}
-
-    @classmethod
-    def convert_queries(cls, key_funcs, attr_funcs, queries):
-        query_by_attr = collections.defaultdict(lambda: [])
-        for i, q in enumerate(queries):
-            query_by_attr[q.attr_index].append((i,q))
-        proc_by_attr_funcs = []
-        for attr_index in query_by_attr:
-            try:
-                attr_func = attr_funcs[attr_index]
-            except IndexError:
-                raise InvalidConfigurationException("Attribute Function Index Out Of Range")
-            p_sum = 0.0
-            query_confs = []
-            for iq in query_by_attr[attr_index]:
-                i, q = iq
-                p_sum += q.p
-                try:
-                    conf = Conf(i, key_funcs[q.key_index], q.p, q.m, q.n, q.name)
-                except IndexError:
-                    raise InvalidConfigurationException("Key Function Index Out Of Range")
-                query_confs.append(conf)
-            if p_sum > 1.0:
-                raise InvalidConfigurationException("Coupon Probabilities Exceed 1")
-            proc_by_attr_funcs.append((attr_func, query_confs))
-        return proc_by_attr_funcs
 
     def proc_attr(self, packet, proc_by_attr_func):
         attr_func, confs = proc_by_attr_func
