@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from constants import DATA_PATH
 
-Packet = namedtuple('Packet', ['src_ip', 'dst_ip', 'ts'])
+Packet = namedtuple('Packet', ['source', 'destination', 'timestamp'])
 
 def parse_packet(packet: PKT): 
     try: 
@@ -51,4 +51,3 @@ def parse_packet_stream(n_packets: int = 1, paths: tuple = None, **kwargs):
     print(f"Loaded [{n_loaded}/{n_packets}] succesfully... {errors} loading errors") # TODO, logging 
     return packet_stream 
 
-stream = parse_packet_stream(n_packets=100, verbose=True) 

@@ -1,16 +1,16 @@
 import collections
 import random
 
-debug = False
+from packet import Packet, parse_packet_stream
+
+debug = False #TODO logging 
 
 class InvalidConfigurationException(Exception):
     pass
 
-Packet = collections.namedtuple('Packet', ['source', 'destination', 'timestamp'])
 Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n', 'query_name'])
 Query = collections.namedtuple('Query', ['key_index', 'attr_index', 'p', 'm', 'n', 'name'])
-RawQuery = collections.namedtuple('RawQuery', ['key_index', 'attr_index', 'threshold', 'name'])
-
+RawQuery = collections.namedtuple('RawQuery', ['key_index', 'attr_index', 'threshold', 'collection_prob', 'name'])
 
 def phash(key):
     v = hash(str(key))
@@ -191,21 +191,22 @@ if __name__ == "__main__":
 
     s = SingleStandaloneSwitch(key_funcs, attr_funcs, queries)
 
-    packets = [
-            Packet(100, 200, 300),
-            Packet(100, 200, 400),
-            Packet(100, 200, 500),
-            Packet(100, 200, 600),
-            Packet(100, 200, 700),
-            Packet(100, 200, 800),
-            Packet(100, 200, 900),
-            Packet(100, 200, 1000),
-            Packet(100, 300, 100),
-            Packet(100, 300, 1100),
-            Packet(100, 300, 1200),
-            Packet(100, 300, 1300),
-            Packet(100, 300, 1400),
-            ]
+    packets = parse_packet_stream(n_packets=10)
+    # packets = [
+    #         Packet(100, 200, 300),
+    #         Packet(100, 200, 400),
+    #         Packet(100, 200, 500),
+    #         Packet(100, 200, 600),
+    #         Packet(100, 200, 700),
+    #         Packet(100, 200, 800),
+    #         Packet(100, 200, 900),
+    #         Packet(100, 200, 1000),
+    #         Packet(100, 300, 100),
+    #         Packet(100, 300, 1100),
+    #         Packet(100, 300, 1200),
+    #         Packet(100, 300, 1300),
+    #         Packet(100, 300, 1400),
+    #         ]
 
     for p in packets:
         if debug:
