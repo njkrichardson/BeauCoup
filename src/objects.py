@@ -85,12 +85,13 @@ class BaseSwitch:
 
             key_val = chosen_query.key_func(packet)
             if key_val in self.coupons[q]:
-                self.coupons[q][key_val][coupon] = True
-                if count(self.coupons[q][key_val]) >= chosen_query.n:
+                self.coupons[q][key_val][1][coupon] = True
+                if count(self.coupons[q][key_val][1]) >= chosen_query.n and not self.coupons[q][key_val][0]:
                     self.report_key(chosen_query.query_name, key_val)
+                    self.coupons[q][key_val][0] = True
             else:
-                self.coupons[q][key_val] = [False]*chosen_query.m
-                self.coupons[q][key_val][coupon] = True
+                self.coupons[q][key_val] = [False, [False]*chosen_query.m]
+                self.coupons[q][key_val][1][coupon] = True
 
     def receive(self, packet):
         chosen_query, coupon = self.select_key_and_coupon(packet)
@@ -144,7 +145,7 @@ class ZeroErrorServer(BaseServer):
         self.key_funcs = key_funcs
         self.attr_funcs = attr_funcs
         self.queries = queries
-        self.table = collections.defaultdict(lambda: collections.defaultdict(lambda: set()))
+        self.table = collections.defaultdict(lambda: collections.defaultdict(lambda: [False, set()]))
 
     def receive_message(self, packet):
         for q in self.queries:
@@ -152,9 +153,10 @@ class ZeroErrorServer(BaseServer):
             key = kf(packet)
             af = self.attr_funcs[q.attr_index]
             attr = af(packet)
-            self.table[q.name][key].add(attr)
-            if len(self.table[q.name][key]) > q.threshold:
+            self.table[q.name][key][1].add(attr)
+            if len(self.table[q.name][key][1]) > q.threshold and not self.table[q.name][key][0]:
                 print('Query "{}" hit threshold for key {}'.format(q.name, key))
+                self.table[q.name][key][0] = True
 
 def build_zeroerror(key_funcs, attr_funcs, raw_queries, n=1):
     server = ZeroErrorServer(key_funcs, attr_funcs, raw_queries)
@@ -195,12 +197,13 @@ class PMPServer(BaseServer):
             self.coupons[q] = {}
 
         if key_val in self.coupons[q]:
-            self.coupons[q][key_val][coupon] = True
-            if count(self.coupons[q][key_val]) >= cq.n:
+            self.coupons[q][key_val][1][coupon] = True
+            if count(self.coupons[q][key_val][1]) >= cq.n and not self.coupons[q][key_val][0]:
                 print('Query "{}" hit threshold for key {}'.format(cq.query_name, key_val))
+                self.coupons[q][key_val][0] = True
         else:
-            self.coupons[q][key_val] = [False]*cq.m
-            self.coupons[q][key_val][coupon] = True
+            self.coupons[q][key_val] = [False, [False]*cq.m]
+            self.coupons[q][key_val][1][coupon] = True
 
 def build_pmp(key_funcs, attr_funcs, raw_queries, n=1):
     queries = compile_queries(raw_queries)

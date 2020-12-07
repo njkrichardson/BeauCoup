@@ -54,3 +54,9 @@ def flip_coin():
     # It would be nice to make this deterministic but pseudorandom,
     # so that our code has no truly random components.
     return bool(random.randint(0,1))
+
+def table_size(table):
+    total = 0
+    for k in table:
+        total += len(table)
+    return total
