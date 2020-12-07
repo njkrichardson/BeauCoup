@@ -21,5 +21,7 @@ setuptools.setup(
     python_requires=">=3.6",
     install_requires=[
         "Jinja2 == 2.11.2",
+        "numpy", 
+        "tqdm", 
     ]
 )

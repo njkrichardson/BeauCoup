@@ -1,15 +1,16 @@
 import collections
 import random
 
-debug = False
+from packet import Packet, parse_packet_stream
+
+debug = False #TODO logging 
 
 class InvalidConfigurationException(Exception):
     pass
 
-Packet = collections.namedtuple('Packet', ['source', 'destination', 'timestamp'])
 Conf = collections.namedtuple('Configuration', ['q', 'key_func', 'p', 'm', 'n', 'query_name'])
 Query = collections.namedtuple('Query', ['key_index', 'attr_index', 'p', 'm', 'n', 'name'])
-RawQuery = collections.namedtuple('RawQuery', ['key_index', 'attr_index', 'threshold', 'name'])
+RawQuery = collections.namedtuple('RawQuery', ['key_index', 'attr_index', 'threshold', 'collection_prob', 'name'])
 
 def phash(key):
     v = hash(str(key))
@@ -140,7 +141,7 @@ class ZeroErrorSwitch(BaseSwitch):
         self.parent_server = parent_server
 
     def receive(self, packet):
-        parent_server.receive_message(packet)
+        self.parent_server.receive_message(packet)
 
 class ZeroErrorServer(BaseServer):
     def __init__(self, key_funcs, attr_funcs, queries):
@@ -149,17 +150,19 @@ class ZeroErrorServer(BaseServer):
         self.queries = queries
         self.table = collections.defaultdict(lambda: collections.defaultdict(lambda: set()))
 
-    def receive(self, packet):
+    def receive_message(self, packet):
         for q in self.queries:
             kf = self.key_funcs[q.key_index]
+            key = kf(packet)
             af = self.attr_funcs[q.attr_index]
-            self.table[q.name][kf].add(af)
-            if len(self.table[q.name][kf]) > q.n:
-                print('Query "{}" hit threshold for key {}'.format(query_name, kf))
+            attr = af(packet)
+            self.table[q.name][key].add(attr)
+            if len(self.table[q.name][key]) > q.threshold:
+                print('Query "{}" hit threshold for key {}'.format(q.name, key))
 
 def build_zeroerror(key_funcs, attr_funcs, raw_queries, n=1):
     server = ZeroErrorServer(key_funcs, attr_funcs, raw_queries)
-    switches = [ZeroErrorSwitch(server) for i in n]
+    switches = [ZeroErrorSwitch(server) for i in range(n)]
     return switches, server
 
 # =======
@@ -232,7 +235,7 @@ def build_pmp(key_funcs, attr_funcs, raw_queries, n=1):
 # =======
 build_functions = {
         "Standalone": build_standalone_switches,
-        "ZeroError": build_standalone_switches,
+        "ZeroError": build_zeroerror,
         "PMP": build_pmp,
         }
 
@@ -255,29 +258,22 @@ if __name__ == "__main__":
             Query(1, 1, 0.25, 4, 3, 'Heavy-Hitter Pairs'),
             ]
 
-
-    s = SingleStandaloneSwitch(key_funcs, attr_funcs, queries)
-
-    packets = [
-            Packet(100, 200, 300),
-            Packet(100, 200, 400),
-            Packet(100, 200, 500),
-            Packet(100, 200, 600),
-            Packet(100, 200, 700),
-            Packet(100, 200, 800),
-            Packet(100, 200, 900),
-            Packet(100, 200, 1000),
-            Packet(100, 300, 100),
-            Packet(100, 300, 1100),
-            Packet(100, 300, 1200),
-            Packet(100, 300, 1300),
-            Packet(100, 300, 1400),
+    raw_queries = [
+            RawQuery(0, 0, 2, 0.1, 'Test'),
             ]
+
+    switches, server = build_zeroerror(key_funcs, attr_funcs, raw_queries, 3)
+
+    packets = parse_packet_stream(n_packets=10000)
+
+    i = 0
 
     for p in packets:
         if debug:
             print("Receiving: {}...".format(p))
-        s.receive(p)
+        switches[i].receive(p)
+        i += 1
+        i = i % 3
 
-    for q in s.coupons:
-        print("{}: {}".format(q, s.coupons[q]))
+    for q in server.table:
+        print("{}: {}".format(q, server.table[q]))
