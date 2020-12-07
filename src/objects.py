@@ -105,9 +105,13 @@ class BaseSwitch:
 
 class BaseServer:
     def __init__(self, *args):
-        pass
+        self.message_count = 0
 
     def receive_message(self, *args):
+        self.message_count += 1
+        self._receive_message(*args)
+
+    def _receive_message(self, *args):
         raise NotImplementedError("Server class does not implement message reception.")
 
 # =======
@@ -119,7 +123,7 @@ class SingleStandaloneSwitch(BaseSwitch):
         print('Query "{}" hit threshold for key {}'.format(query_name, key))
 
 class EchoServer(BaseServer):
-    def receive_message(self, message):
+    def _receive_message(self, message):
         print(message)
 
 def build_standalone_switches(key_funcs, attr_funcs, raw_queries, n=1):
@@ -142,12 +146,13 @@ class ZeroErrorSwitch(BaseSwitch):
 
 class ZeroErrorServer(BaseServer):
     def __init__(self, key_funcs, attr_funcs, queries):
+        super().__init__()
         self.key_funcs = key_funcs
         self.attr_funcs = attr_funcs
         self.queries = queries
         self.table = collections.defaultdict(lambda: collections.defaultdict(lambda: [False, set()]))
 
-    def receive_message(self, packet):
+    def _receive_message(self, packet):
         for q in self.queries:
             kf = self.key_funcs[q.key_index]
             key = kf(packet)
@@ -187,9 +192,10 @@ class PMPSwitch(BaseSwitch):
 
 class PMPServer(BaseServer):
     def __init__(self):
+        super().__init__()
         self.coupons = {}
 
-    def receive_message(self, msg):
+    def _receive_message(self, msg):
         cq, key_val, coupon = msg
 
         q = cq.q
@@ -258,5 +264,6 @@ if __name__ == "__main__":
         i += 1
         i = i % n
 
-#    for q in server.coupons:
-#        print("{}: {}".format(q, server.coupons[q]))
+    print(server.message_count)
+    # for q in server.coupons:
+    #     print("{}: {}".format(q, server.coupons[q]))
