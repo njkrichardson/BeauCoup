@@ -47,7 +47,3 @@ def compiler(raw_query: RawQuery) -> tuple:
     (m, p, n) = configs[0]
     return (m, p, n) 
 
-if __name__=="__main__": 
-    query = RawQuery(1, 1, 33612, 0.13332, 'random') 
-    config = compiler(query)
-
