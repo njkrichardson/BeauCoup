@@ -41,6 +41,21 @@ def default_query_configs(name: str, n_queries: int):
         for _ in range(n_queries): 
             sample_key, sample_attr = random.choice(KEY_FUNCS), random.choice(ATTR_FUNCS)
             key_funcs.append(sample_key); attr_funcs.append(sample_attr) 
+    elif name is 'hack': 
+        for _ in range(n_queries): 
+            key_funcs.append(KEY_FUNCS[0]); attr_funcs.append(ATTR_FUNCS[2])
+    elif name is 'set_1': 
+        for _ in range(n_queries): 
+            key_funcs.append(KEY_FUNCS[0]); attr_funcs.append(ATTR_FUNCS[2])
+    elif name is 'set_2': 
+        for _ in range(n_queries): 
+            key_funcs.append(KEY_FUNCS[0]); attr_funcs.append(ATTR_FUNCS[0])
+    elif name is 'set_3': 
+        for _ in range(n_queries): 
+            key_funcs.append(ATTR_FUNCS[0]); attr_funcs.append(ATTR_FUNCS[2])
+    elif name is 'set_4': 
+        for _ in range(n_queries): 
+            key_funcs.append(KEY_FUNCS[1]); attr_funcs.append(ATTR_FUNCS[2])
     else: 
         raise(NotImplementedError)
     return key_funcs, attr_funcs

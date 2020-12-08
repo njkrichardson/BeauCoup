@@ -52,6 +52,7 @@ def manifest_world(builder: callable, key_funcs : list, attr_funcs : list, raw_q
     alerts_list = []
     relative_errors = [] 
     hits = defaultdict(lambda: set())
+
     def alert_logger(query : RawQuery, key):
         predicted, actual = len(truth_table[query.name][key]), query.threshold
         alerts_list.append((query.name, key, predicted, actual))
