@@ -13,7 +13,10 @@ from constants import DATA_PATH
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
-file_handler = logging.FileHandler('logs/packet.log')
+try: 
+    file_handler = logging.FileHandler('logs/packet.log')
+except: 
+    file_handler = logging.FileHandler('src/logs/packet.log')
 logger.addHandler(file_handler)
 
 Packet = namedtuple('Packet', ['source', 'destination', 'timestamp'])

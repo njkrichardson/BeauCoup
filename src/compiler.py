@@ -8,7 +8,10 @@ from query import Query, RawQuery
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING) 
-file_handler = logging.FileHandler('logs/compiler.log') 
+try: 
+    file_handler = logging.FileHandler('logs/compiler.log') 
+except: 
+    file_handler = logging.FileHandler('src/logs/compiler.log') 
 logger.addHandler(file_handler) 
 
 def _max_coupons(query : tuple) -> tuple: 
@@ -54,3 +57,4 @@ def compile_queries(raw_queries: list) -> list:
         queries += [Query(rq.key_index, rq.attr_index, p, m, n, rq.name), ]
     print(queries)
     return queries
+
