@@ -33,7 +33,7 @@ class ZeroErrorServer(BaseServer):
             af = self.attr_funcs[q.attr_index]
             attr = af(packet)
             self.table[q.name][key][1].add(attr)
-            if len(self.table[q.name][key][1]) > q.threshold and not self.table[q.name][key][0]:
+            if len(self.table[q.name][key][1]) >= q.threshold and not self.table[q.name][key][0]:
                 self.alert(q, key)
                 self.table[q.name][key][0] = True
 

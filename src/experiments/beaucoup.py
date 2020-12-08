@@ -1,5 +1,4 @@
 import argparse 
-from functools import partial 
 import collections
 import logging 
 import random
@@ -35,4 +34,4 @@ if __name__ == "__main__":
             RawQuery(0, 1, 100, 0.1, 'Test'),
             ]
 
-    manifest_world(partial(build_func, key_funcs, attr_funcs, raw_queries), args.n_switches, args.n_packets)
+    manifest_world(build_func, key_funcs, attr_funcs, raw_queries, args.n_switches, args.n_packets)
