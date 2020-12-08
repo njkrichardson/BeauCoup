@@ -18,35 +18,44 @@ logger.addHandler(file_handler)
 def temporary_alert_function(query : RawQuery, key):
     print('Query "{}" hit threshold for key {}'.format(query.name, key))
 
-def build_zeroerror(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
-    server = ZeroErrorServer(key_funcs, attr_funcs, raw_queries, temporary_alert_function)
+def build_zeroerror(key_funcs: list, attr_funcs: list, raw_queries, alert_func, n: int = 1):
+    server = ZeroErrorServer(key_funcs, attr_funcs, raw_queries, alert_func)
     switches = [ZeroErrorSwitch(server) for i in range(n)]
     return switches, server
 
-def build_standalone_switches(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
-    server = EchoServer(temporary_alert_function)
+def build_standalone_switches(key_funcs: list, attr_funcs: list, raw_queries, alert_func, n: int = 1):
+    server = EchoServer(alert_func)
     queries = compile_queries(raw_queries) 
     switches = [SingleStandaloneSwitch(server, key_funcs, attr_funcs, queries) for i in range(n)]
     return switches, server
 
-def build_pmp(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
+def build_pmp(key_funcs: list, attr_funcs: list, raw_queries, alert_func, n: int = 1):
     queries = compile_queries(raw_queries)
-    server = PMPServer(temporary_alert_function)
+    server = PMPServer(alert_func)
     switches = [PMPSwitch(server, key_funcs, attr_funcs, queries) for i in range(n)]
     return switches, server
 
-def manifest_world(builder: callable, n_switches: int, n_packets: int): 
-    switches, server = builder(n_switches)
-    packets = parse_packet_stream(n_packets=n_packets)
-    i = 0
+def manifest_world(builder: callable, key_funcs : list, attr_funcs : list, raw_queries : list, n_switches: int, n_packets: int): 
     truth_table = defaultdict(lambda: defaultdict(lambda: set()))
+
+    alerts_list = []
+    def alert_logger(query : RawQuery, key):
+        alerts_list.append((query.name, key, len(truth_table[query.name][key]), query.threshold))
+
+    switches, server = builder(key_funcs, attr_funcs, raw_queries, alert_logger, n_switches)
+    packets = parse_packet_stream(n_packets=n_packets)
+
+    i = 0
 
     for packet in packets:
         logger.debug(f"Receiving: {packet}...")
+        for query in raw_queries:
+            truth_table[query.name][key_funcs[query.key_index](packet)].add(attr_funcs[query.attr_index](packet))
         switches[i].receive(packet) #TODO we need a packet switching method (this can be a special case) 
         i += 1
         i = i % n_switches
 
+    print(alerts_list)
     print(server.message_count)
 
 build_functions = {
