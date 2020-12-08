@@ -1,6 +1,6 @@
 ## BeauCoup: Network Analysis in Resource Constrained Settings 
 
-This repository contains a reimplementation of the BeauCoup network administration system formulated by Chen et al [1]. BeauCoup is comprised of an algorithmic component inspired by the coupon collector's problem in probability theory [2], and a compiler for parameter configuration to optimize system accuracy. 
+This repository contains a logical clone of the BeauCoup network administration system formulated by Chen et al [1] with our own extensions into the multi-switch coupon collection setting. BeauCoup is comprised of an algorithmic component inspired by the coupon collector's problem in probability theory [2], and a compiler for parameter configuration to optimize system accuracy. 
 
 ### Installation 
 
