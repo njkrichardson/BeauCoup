@@ -14,7 +14,7 @@ pip install .
 
 ### Replication 
 
-Check out the experiments in `src/experiments` to replicate the results provided in our report. Each simulation has parameters which can be modulated to change the simulation behavior (e.g., the number of packets in the simulation word). Use the `-h` flag to get information on how these parameters work:
+Check out the experiments in `src/experiments` to replicate the results provided in our report. Each simulation has parameters which can be modulated to change the simulation behavior (e.g., the number of packets in the simulation world). Use the `-h` flag to get information on how these parameters work:
 
 ```bash
 >> python src/experiments/beaucoup.py -h`
