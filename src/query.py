@@ -18,8 +18,10 @@ DEFAULT_QUERY_NAMES = list(DEFAULT_QUERIES.keys())
 def default_query_configs(name: str): 
     key_funcs, attr_funcs = [], []
     if name is 'all': 
-        key_funcs.extend(query_type[0] for query_type in DEFAULT_QUERY_NAMES)
-        attr_funcs.extend(query_type[1] for query_type in DEFAULT_QUERY_NAMES) 
+        key_funcs.extend(DEFAULT_QUERIES
+                [query_type][0] for query_type in DEFAULT_QUERY_NAMES)
+        attr_funcs.extend(DEFAULT_QUERIES
+                [query_type][1] for query_type in DEFAULT_QUERY_NAMES) 
     elif args.query_class in DEFAULT_QUERY_NAMES: 
         key_funcs.append(DEFAULT_QUERIES[args.query_class][0])
         attr_funcs.append(DEFAULT_QUERIES[args.query_class][1])

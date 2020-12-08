@@ -3,7 +3,8 @@ from query import convert_queries
 from utils import phash, count, flip_coin
 
 class BaseSwitch:
-    def __init__(self, key_funcs, attr_funcs, queries):
+    def __init__(self, parent_server, key_funcs, attr_funcs, queries):
+        self.parent_server = parent_server
         self.proc_by_attr_funcs = convert_queries(key_funcs, attr_funcs, queries)
         self.coupons = {}
 
@@ -69,20 +70,18 @@ class BaseSwitch:
 
 class SingleStandaloneSwitch(BaseSwitch):
     def report_key(self, query_name, key):
-        print('Query "{}" hit threshold for key {}'.format(query_name, key))
+        self.parent_server.receive_message(
+                'Query "{}" hit threshold for key {}'.format(query_name, key)
+                )
 
 class ZeroErrorSwitch(BaseSwitch):
-    def __init__(self, parent_server):
+    def __init__(self, parent_server, *args):
         self.parent_server = parent_server
 
     def receive(self, packet):
         self.parent_server.receive_message(packet)
 
 class PMPSwitch(BaseSwitch):
-    def __init__(self, parent_server, *args):
-        super().__init__(*args)
-        self.parent_server = parent_server
-
     def receive(self, packet):
         chosen_query, coupon = self.select_key_and_coupon(packet)
 
@@ -95,8 +94,8 @@ class PMPSwitch(BaseSwitch):
         self.parent_server.receive_message(msg)
 
 def build_standalone_switches(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
-    queries = compile_queries(raw_queries) 
-    switches = [SingleStandaloneSwitch(key_funcs, attr_funcs, queries) for i in range(n)]
     server = EchoServer()
+    queries = compile_queries(raw_queries)
+    switches = [SingleStandaloneSwitch(server, key_funcs, attr_funcs, queries) for i in range(n)]
     return switches, server
 

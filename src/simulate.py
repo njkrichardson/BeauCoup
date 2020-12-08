@@ -16,9 +16,9 @@ def build_zeroerror(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
     return switches, server
 
 def build_standalone_switches(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
-    queries = compile_queries(raw_queries) 
-    switches = [SingleStandaloneSwitch(key_funcs, attr_funcs, queries) for i in range(n)]
     server = EchoServer()
+    queries = compile_queries(raw_queries) 
+    switches = [SingleStandaloneSwitch(server, key_funcs, attr_funcs, queries) for i in range(n)]
     return switches, server
 
 def build_pmp(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
