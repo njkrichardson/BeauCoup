@@ -19,11 +19,15 @@ except:
     file_handler = logging.FileHandler('src/logs/packet.log')
 logger.addHandler(file_handler)
 
-Packet = namedtuple('Packet', ['source', 'destination', 'timestamp'])
+Packet = namedtuple('Packet', ['source', 'destination', 'timestamp', 'destination_port'])
 
 def parse_packet(packet: PKT): 
     try: 
-        return Packet(packet['ip'].src, packet['ip'].dst, packet.sniff_timestamp)
+        if 'tcp' in (layer.layer_name for layer in packet.layers): 
+            dst_port = packet['tcp'].dstport
+        else: 
+            dst_port = None
+        return Packet(packet['ip'].src, packet['ip'].dst, packet.sniff_timestamp, dst_port)
     except KeyError as e: 
         if 'ipv6' in (layer.layer_name for layer in packet.layers): 
             logger.debug('ipv6 packet detected... skipping') 

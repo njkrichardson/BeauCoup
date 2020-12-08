@@ -1,4 +1,5 @@
 import logging 
+import pdb
 from typing import Union 
 
 import numpy as np 
@@ -54,10 +55,13 @@ def _get_reasonable_configs(feasible_probs : list, max_coupons : list, threshold
 
 def compiler(raw_query: RawQuery) -> tuple: 
     feasible_probs, max_coupons = _max_coupons(raw_query) 
-    configs = _get_reasonable_configs(feasible_probs, max_coupons, raw_query.threshold) # TODO simulated table 
+    configs = _get_reasonable_configs(feasible_probs, max_coupons, raw_query.threshold) 
     configs = sorted(configs, key=lambda x: x[2])
     # print(configs)
-    print(configs[0])
+    try: 
+        print(configs[0])
+    except: 
+        pdb.set_trace() 
     print(np.sqrt(configs[0][2]))
     (m, p, n) = configs[0][1]
     return (m, p, n) 
