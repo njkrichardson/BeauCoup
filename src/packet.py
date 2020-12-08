@@ -4,7 +4,6 @@ from glob import glob
 import logging 
 from os.path import join 
 from warnings import warn 
-# TODO logging 
 
 from pyshark import FileCapture as capture 
 from pyshark.packet.packet import Packet as PKT
@@ -12,28 +11,32 @@ from tqdm import tqdm
 
 from constants import DATA_PATH
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
+file_handler = logging.FileHandler('logs/packet.log')
+logger.addHandler(file_handler)
+
 Packet = namedtuple('Packet', ['source', 'destination', 'timestamp'])
 
 def parse_packet(packet: PKT): 
     try: 
         return Packet(packet['ip'].src, packet['ip'].dst, packet.sniff_timestamp)
     except KeyError as e: 
-        # TODO logging 
         if 'ipv6' in (layer.layer_name for layer in packet.layers): 
-            print('ipv6 packet detected... skipping') 
+            logger.debug('ipv6 packet detected... skipping') 
             return None 
         else: 
-            print(e) 
+            logger.error(e)
             return None 
 
 def load_traces(path: str = DATA_PATH) -> tuple: 
     pcap_paths, ts_paths = map(glob, map(partial(join, path), ['*.pcap', '*.times'])) 
     if len(pcap_paths) == 0: 
-        warn(f'no pcap traces found... ensure a *.pcap file appears in {trace_path}')
+        logger.warn(f'no pcap traces found... ensure a *.pcap file appears in {trace_path}')
     elif len(ts_paths) == 0: 
-        warn(f'no timestamp file found... proceeding without timestamp correlation')
+        logger.warn(f'no timestamp file found... proceeding without timestamp correlation')
     elif len(pcap_paths) > 1: 
-        warn(f'Found {len(pcap_paths)} pcap traces... using {pcap_paths[0]}')
+        logger.warn(f'Found {len(pcap_paths)} pcap traces... using {pcap_paths[0]}')
     return (capture(pcap_paths[0]), ts_paths[0])
 
 def parse_packet_stream(n_packets: int = 1, paths: tuple = None, **kwargs): 
@@ -48,6 +51,6 @@ def parse_packet_stream(n_packets: int = 1, paths: tuple = None, **kwargs):
             n_loaded += 1
         else: 
             errors += 1
-    print(f"Loaded [{n_loaded}/{n_packets}] succesfully... {errors} loading errors") # TODO, logging 
+    logger.info(f"Loaded [{n_loaded}/{n_packets}] succesfully... {errors} loading errors")
     return packet_stream 
 

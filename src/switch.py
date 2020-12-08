@@ -2,8 +2,6 @@ from compiler import compile_queries
 from query import convert_queries 
 from utils import phash, count, flip_coin
 
-debug = False #TODO logging
-
 class BaseSwitch:
     def __init__(self, key_funcs, attr_funcs, queries):
         self.proc_by_attr_funcs = convert_queries(key_funcs, attr_funcs, queries)
@@ -73,7 +71,6 @@ class SingleStandaloneSwitch(BaseSwitch):
     def report_key(self, query_name, key):
         print('Query "{}" hit threshold for key {}'.format(query_name, key))
 
-
 class ZeroErrorSwitch(BaseSwitch):
     def __init__(self, parent_server):
         self.parent_server = parent_server
@@ -102,3 +99,4 @@ def build_standalone_switches(key_funcs: list, attr_funcs: list, raw_queries, n:
     switches = [SingleStandaloneSwitch(key_funcs, attr_funcs, queries) for i in range(n)]
     server = EchoServer()
     return switches, server
+

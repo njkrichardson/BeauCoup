@@ -17,7 +17,6 @@ class EchoServer(BaseServer):
     def _receive_message(self, message):
         print(message)
 
-
 class ZeroErrorServer(BaseServer):
     def __init__(self, key_funcs, attr_funcs, queries):
         super().__init__()
@@ -56,3 +55,4 @@ class PMPServer(BaseServer):
         else:
             self.coupons[q][key_val] = [False, [False]*cq.m]
             self.coupons[q][key_val][1][coupon] = True
+
