@@ -21,8 +21,8 @@ def default_query_configs(name: str):
         key_funcs.extend(query_type[0] for query_type in DEFAULT_QUERY_NAMES)
         attr_funcs.extend(query_type[1] for query_type in DEFAULT_QUERY_NAMES) 
     elif args.query_class in DEFAULT_QUERY_NAMES: 
-        key_funcs.append(DEFAULT_QUERIES[args.query_class][0])
-        attr_funcs.append(DEFAULT_QUERIES[args.query_class][1])
+        key_funcs.append(DEFAULT_QUERIES[name][0])
+        attr_funcs.append(DEFAULT_QUERIES[name][1])
     else: 
         raise(NotImplementedError)
     return key_funcs, attr_funcs
