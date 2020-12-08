@@ -33,6 +33,12 @@ def _expected_draws(m, p, n):
         draws += m/(p*(m-j))
     return draws
 
+def _variance(m, p, n):
+    var = 0
+    for j in range(n):
+        var += m * (1 - p + j/m)/(m-j)/(m-j)/p/p
+    return var
+
 def _get_reasonable_configs(feasible_probs : list, max_coupons : list, threshold: int) -> list: 
     configs = () 
     for p_q, m_q in zip(feasible_probs, max_coupons): 
@@ -42,14 +48,17 @@ def _get_reasonable_configs(feasible_probs : list, max_coupons : list, threshold
                 e_draws = _expected_draws(m, p_q, n)
                 if 0.95 * threshold < e_draws < 1.05 * threshold: # TODO: relax this if no reasonable config is found
                     log_error = np.abs(np.log(e_draws)-np.log(threshold))
-                    configs += ((log_error, (m, p_q, n)),)
+                    var = _variance(m, p_q, n)
+                    configs += ((log_error, (m, p_q, n), var),)
     return configs
 
 def compiler(raw_query: RawQuery) -> tuple: 
     feasible_probs, max_coupons = _max_coupons(raw_query) 
     configs = _get_reasonable_configs(feasible_probs, max_coupons, raw_query.threshold) # TODO simulated table 
-    configs = sorted(configs, key=lambda x: x[0])
-    print(configs)
+    configs = sorted(configs, key=lambda x: x[2])
+    # print(configs)
+    print(configs[0])
+    print(np.sqrt(configs[0][2]))
     (m, p, n) = configs[0][1]
     return (m, p, n) 
 

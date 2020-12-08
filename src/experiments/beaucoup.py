@@ -31,7 +31,8 @@ if __name__ == "__main__":
 
     # TODO: randomize this 
     raw_queries = [
-            RawQuery(0, 1, 100, 0.75, 'Test'),
+            RawQuery(0, 1, 1000, 0.75, 'Active'),
+            RawQuery(1, 1, 500, 0.5, 'Connections'),
             ]
 
     manifest_world(build_func, key_funcs, attr_funcs, raw_queries, args.n_switches, args.n_packets)
