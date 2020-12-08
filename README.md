@@ -28,11 +28,12 @@ problem.
 optional arguments:
   -h, --help            show this help message and exit
   --query_class QUERY_CLASS
-                        which class of query configurations to use
+                        which class of query configurations to use (e.g.,
+                        'all', 'spreader')
   --n_switches N_SWITCHES
-                        number of switches to simulate
+                        number of switches to simulate (a positive integer)
   --n_packets N_PACKETS
-                        number of packets to simulate
+                        number of packets to simulate (a positive integer)
 ```
 
 Note that changing the psuedo-random number generator seed in `src/constants.py` would cause the timelines you to simulate proceed similarly though not identically to ours. 
