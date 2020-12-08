@@ -7,7 +7,10 @@ from switch import PMPSwitch, SingleStandaloneSwitch, ZeroErrorSwitch
 
 logger = logging.getLogger(__name__) 
 logger.setLevel(logging.WARNING)
-file_handler = logging.FileHandler('logs/simulate.log')
+try: 
+    file_handler = logging.FileHandler('logs/simulate.log')
+except:
+    file_handler = logging.FileHandler('src/logs/simulate.log')
 logger.addHandler(file_handler)
 
 def build_zeroerror(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
