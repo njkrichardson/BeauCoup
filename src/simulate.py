@@ -1,7 +1,11 @@
 from collections import defaultdict
+import pdb
 import logging 
 
+import numpy as np 
+
 from compiler import compile_queries
+from evaluation import relative_error
 from packet import parse_packet_stream
 from query import RawQuery
 from server import PMPServer, EchoServer, ZeroErrorServer
@@ -46,21 +50,23 @@ def manifest_world(builder: callable, key_funcs : list, attr_funcs : list, raw_q
     truth_table = defaultdict(lambda: defaultdict(lambda: set()))
 
     alerts_list = []
+    relative_errors = [] 
     hits = defaultdict(lambda: set())
     def alert_logger(query : RawQuery, key):
-        alerts_list.append((query.name, key, len(truth_table[query.name][key]), query.threshold))
+        predicted, actual = len(truth_table[query.name][key]), query.threshold
+        alerts_list.append((query.name, key, predicted, actual))
+        relative_errors.append(relative_error(predicted, actual))
         hits[query.name].add(key)
 
     switches, server = builder(key_funcs, attr_funcs, raw_queries, alert_logger, n_switches)
     packets = parse_packet_stream(n_packets=n_packets)
 
     i = 0
-
     for packet in packets:
         logger.debug(f"Receiving: {packet}...")
         for query in raw_queries:
             truth_table[query.name][key_funcs[query.key_index](packet)].add(attr_funcs[query.attr_index](packet))
-        switches[i].receive(packet) #TODO we need a packet switching method (this can be a special case) 
+        switches[i].receive(packet) 
         i += 1
         i = i % n_switches
 
@@ -77,8 +83,16 @@ def manifest_world(builder: callable, key_funcs : list, attr_funcs : list, raw_q
     print(missed_alerts)
 
     if hasattr(server, "coupons"):
-        print("Memory Used: {}".format(table_size(server.coupons)))
-    print("Messages Used: {}".format(server.message_count))
+        memory_used = table_size(server.coupons)
+        print("Memory Used: {}".format(memory_used))
+    else: 
+        memory_used = None
+    messages_used = server.message_count
+    print("Messages Used: {}".format(messages_used))
+    mean_relative_error = np.array(relative_errors).mean() 
+    return (memory_used, messages_used, mean_relative_error)
+
+
 
 build_functions = {
         "Standalone": build_standalone_switches,
