@@ -1,66 +1,56 @@
 from compiler import compile_queries
-from query import convert_queries 
+from query import gather_queries 
 from utils import phash, count, flip_coin
 
 class BaseSwitch:
     def __init__(self, parent_server, key_funcs, attr_funcs, queries):
         self.parent_server = parent_server
-        self.proc_by_attr_funcs = convert_queries(key_funcs, attr_funcs, queries)
+        self.key_funcs = key_funcs
+        self.attr_funcs = attr_funcs
+        self.queries = queries
+        self.queries_by_attr = gather_queries(queries)
         self.coupons = {}
 
-    def proc_attr(self, packet, proc_by_attr_func):
-        attr_func, confs = proc_by_attr_func
-        val = phash(attr_func(packet))
-        for c in confs:
-            if val < c.p:
-                coupon = int(val/c.p * c.m)
-                return (c, coupon)
-            val -= c.p
+    def select_key_and_coupon(self, packet):
+        chosen_coupons = []
+
+        for attr_index in self.queries_by_attr:
+            grouped_queries = self.queries_by_attr[attr_index]
+            attr_func = self.attr_funcs[attr_index]
+            val = phash(attr_func(packet))
+            for query in grouped_queries:
+                if val < query.p:
+                    coupon = int(val/query.p * query.m)
+                    chosen_coupons += [(query, coupon),]
+                    break
+                val -= query.p
+
+        if len(chosen_coupons) == 1:
+            return chosen_coupons[0]
+
+        if len(chosen_coupons) == 2:
+            return chosen_coupons[1] if flip_coin() else chosen_coupons[0]
+
         return (None, 0)
 
-    def select_key_and_coupon(self, packet):
-        chosen_query = None
-        coupon = 0
-        collected_coupons = 0
+    def update_coupon_table(self, query, coupon, packet):
+        query_name = query.raw_query.name
+        if query_name not in self.coupons:
+            self.coupons[query_name] = {}
 
-        for proc_by_attr_func in self.proc_by_attr_funcs:
-            query_conf, sampled_coupon = self.proc_attr(packet, proc_by_attr_func)
-            if query_conf is not None:
-                if collected_coupons == 0:
-                    chosen_query = query_conf
-                    coupon = sampled_coupon
-                    collected_coupons += 1
-                elif collected_coupons == 1:
-                    if flip_coin():
-                        chosen_query = query_conf
-                        coupon = sampled_coupon
-                    collected_coupons += 1
-                else:
-                    chosen_query = None
-                    coupon = 0
-                    collected_coupons += 1
-                    break
-        return chosen_query, coupon
+        key_val = self.key_funcs[query.raw_query.key_index](packet)
+        if key_val not in self.coupons[query_name]:
+            self.coupons[query_name][key_val] = [False, [False]*query.m]
 
-    def update_coupon_table(self, chosen_query, coupon, packet):
-        if chosen_query is not None:
-            q = chosen_query.q
-            if q not in self.coupons:
-                self.coupons[q] = {}
-
-            key_val = chosen_query.key_func(packet)
-            if key_val in self.coupons[q]:
-                self.coupons[q][key_val][1][coupon] = True
-                if count(self.coupons[q][key_val][1]) >= chosen_query.n and not self.coupons[q][key_val][0]:
-                    self.report_key(chosen_query.query_name, key_val)
-                    self.coupons[q][key_val][0] = True
-            else:
-                self.coupons[q][key_val] = [False, [False]*chosen_query.m]
-                self.coupons[q][key_val][1][coupon] = True
+        self.coupons[query_name][key_val][1][coupon] = True
+        if count(self.coupons[query_name][key_val][1]) >= query.n and not self.coupons[query_name][key_val][0]:
+            self.report_key(query, key_val)
+            self.coupons[query_name][key_val][0] = True
 
     def receive(self, packet):
         chosen_query, coupon = self.select_key_and_coupon(packet)
-        self.update_coupon_table(chosen_query, coupon, packet)
+        if chosen_query is not None:
+            self.update_coupon_table(chosen_query, coupon, packet)
 
     def reset(self):
         self.coupons = {}
@@ -69,10 +59,8 @@ class BaseSwitch:
         raise NotImplementedError("Switch class does not implement message sending")
 
 class SingleStandaloneSwitch(BaseSwitch):
-    def report_key(self, query_name, key):
-        self.parent_server.receive_message(
-                'Query "{}" hit threshold for key {}'.format(query_name, key)
-                )
+    def report_key(self, query, key):
+        self.parent_server.receive_message(query, key)
 
 class ZeroErrorSwitch(BaseSwitch):
     def __init__(self, parent_server, *args):
@@ -86,8 +74,7 @@ class PMPSwitch(BaseSwitch):
         chosen_query, coupon = self.select_key_and_coupon(packet)
 
         if chosen_query is not None:
-            q = chosen_query.q
-            key_val = chosen_query.key_func(packet)
+            key_val = self.key_funcs[chosen_query.raw_query.key_index](packet)
             self.report_key((chosen_query, key_val, coupon))
 
     def report_key(self, msg):

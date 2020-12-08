@@ -15,8 +15,8 @@ class BaseServer:
         raise NotImplementedError("Server class does not implement message reception.")
 
 class EchoServer(BaseServer):
-    def _receive_message(self, message):
-        self.alert(message)
+    def _receive_message(self, query, key):
+        self.alert(query.raw_query, key)
 
 class ZeroErrorServer(BaseServer):
     def __init__(self, key_funcs, attr_funcs, queries, *args):
@@ -35,7 +35,6 @@ class ZeroErrorServer(BaseServer):
             self.table[q.name][key][1].add(attr)
             if len(self.table[q.name][key][1]) > q.threshold and not self.table[q.name][key][0]:
                 self.alert(q, key)
-                print('Query "{}" hit threshold for key {}'.format(q.name, key)) # TODO: logging 
                 self.table[q.name][key][0] = True
 
 class PMPServer(BaseServer):
@@ -44,18 +43,14 @@ class PMPServer(BaseServer):
         self.coupons = {}
 
     def _receive_message(self, msg):
-        cq, key_val, coupon = msg
-        q = cq.q
-        if q not in self.coupons:
-            self.coupons[q] = {}
+        query, key_val, coupon = msg
+        query_name = query.raw_query.name
+        if query_name not in self.coupons:
+            self.coupons[query_name] = {}
 
-        if key_val in self.coupons[q]:
-            self.coupons[q][key_val][1][coupon] = True
-            if count(self.coupons[q][key_val][1]) >= cq.n and not self.coupons[q][key_val][0]:
-                self.alert(q, key)
-                print('Query "{}" hit threshold for key {}'.format(cq.query_name, key_val))
-                self.coupons[q][key_val][0] = True
-        else:
-            self.coupons[q][key_val] = [False, [False]*cq.m]
-            self.coupons[q][key_val][1][coupon] = True
+        if key_val not in self.coupons[query_name]:
+            self.coupons[query_name][key_val] = [False, [False]*query.m]
 
+        self.coupons[query_name][key_val][1][coupon] = True
+        if count(self.coupons[query_name][key_val][1]) >= query.n and not self.coupons[query_name][key_val][0]:
+            self.alert(query.raw_query, key_val)

@@ -7,7 +7,7 @@ import random
 import configure_paths
 from compiler import compile_queries
 from packet import Packet, parse_packet_stream
-from query import Query, RawQuery, convert_queries, Conf, default_query_configs
+from query import Query, RawQuery, convert_queries, default_query_configs
 from utils import phash, count, flip_coin
 from simulate import build_pmp, manifest_world
 
