@@ -11,4 +11,5 @@ PCAP_STATS_PATH = 'https://data.caida.org/datasets/passive-2018/equinix-nyc/2018
 BIT = 1 
 BYTE = 8 * BIT 
 WORD_SIZE = 4 * BYTE 
+PICARD = 2305
 
