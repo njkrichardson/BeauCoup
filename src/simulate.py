@@ -5,7 +5,7 @@ from compiler import compile_queries
 from packet import parse_packet_stream
 from query import RawQuery
 from server import PMPServer, EchoServer, ZeroErrorServer
-from switch import PMPSwitch, SingleStandaloneSwitch, ZeroErrorSwitch
+from switch import PMPSwitch, SingleStandaloneSwitch, ZeroErrorSwitch, PPMPSwitch
 from utils import table_size
 
 logger = logging.getLogger(__name__) 
@@ -34,6 +34,12 @@ def build_pmp(key_funcs: list, attr_funcs: list, raw_queries, alert_func, n: int
     queries = compile_queries(raw_queries)
     server = PMPServer(alert_func)
     switches = [PMPSwitch(server, key_funcs, attr_funcs, queries) for i in range(n)]
+    return switches, server
+
+def build_ppmp(key_funcs: list, attr_funcs: list, raw_queries, alert_func, n: int = 1):
+    queries = compile_queries(raw_queries)
+    server = PMPServer(alert_func)
+    switches = [PPMPSwitch(server, key_funcs, attr_funcs, queries) for i in range(n)]
     return switches, server
 
 def manifest_world(builder: callable, key_funcs : list, attr_funcs : list, raw_queries : list, n_switches: int, n_packets: int): 
@@ -78,4 +84,5 @@ build_functions = {
         "Standalone": build_standalone_switches,
         "ZeroError": build_zeroerror,
         "PMP": build_pmp,
+        "PPMP": build_ppmp,
         }

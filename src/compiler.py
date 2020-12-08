@@ -30,7 +30,7 @@ def _max_coupons(query : tuple) -> tuple:
 def _expected_draws(m, p, n): 
     draws = 0 
     for j in range(n): 
-        draws += 1/(p*(m-j))
+        draws += m/(p*(m-j))
     return draws
 
 def _get_reasonable_configs(feasible_probs : list, max_coupons : list, threshold: int) -> list: 
@@ -41,13 +41,16 @@ def _get_reasonable_configs(feasible_probs : list, max_coupons : list, threshold
                 assert 1 <= n and n <= m and m <= m_q, "somethings not right..." 
                 e_draws = _expected_draws(m, p_q, n)
                 if 0.95 * threshold < e_draws < 1.05 * threshold: # TODO: relax this if no reasonable config is found
-                    configs += ((m, p_q, n),)
+                    log_error = np.abs(np.log(e_draws)-np.log(threshold))
+                    configs += ((log_error, (m, p_q, n)),)
     return configs
 
 def compiler(raw_query: RawQuery) -> tuple: 
     feasible_probs, max_coupons = _max_coupons(raw_query) 
     configs = _get_reasonable_configs(feasible_probs, max_coupons, raw_query.threshold) # TODO simulated table 
-    (m, p, n) = configs[0]
+    configs = sorted(configs, key=lambda x: x[0])
+    print(configs)
+    (m, p, n) = configs[0][1]
     return (m, p, n) 
 
 def compile_queries(raw_queries: list) -> list:
