@@ -35,7 +35,7 @@ optional arguments:
                         number of packets to simulate
 ```
 
-Note that changing the psuedo-random number generator seed in `src/constants.py` would cause the timelines you simulate proceed similarly though not identically to ours. 
+Note that changing the psuedo-random number generator seed in `src/constants.py` would cause the timelines you to simulate proceed similarly though not identically to ours. 
 
 #### References 
 
