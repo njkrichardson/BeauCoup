@@ -54,3 +54,4 @@ class PMPServer(BaseServer):
         self.coupons[query_name][key_val][1][coupon] = True
         if count(self.coupons[query_name][key_val][1]) >= query.n and not self.coupons[query_name][key_val][0]:
             self.alert(query.raw_query, key_val)
+            self.coupons[query_name][key_val][0] = True
