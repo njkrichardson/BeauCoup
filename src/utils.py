@@ -59,5 +59,5 @@ def flip_coin():
 def table_size(table):
     total = 0
     for k in table:
-        total += len(table)
+        total += len(table[k])
     return total
