@@ -54,7 +54,6 @@ def compile_queries(raw_queries: list) -> list:
     queries = []
     for rq in raw_queries:
         m, p, n = compiler(rq)
-        queries += [Query(rq.key_index, rq.attr_index, p, m, n, rq.name), ]
-    print(queries)
+        queries += [Query(p, m, n, rq),]
     return queries
 
