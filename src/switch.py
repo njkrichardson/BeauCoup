@@ -1,6 +1,6 @@
 from compiler import compile_queries
-from query import gather_queries 
-from utils import phash, count, flip_coin
+from query import gather_queries, Query
+from utils import phash, count, flip_coin, flip_weighted_coin
 
 class BaseSwitch:
     def __init__(self, parent_server, key_funcs, attr_funcs, queries):
@@ -79,6 +79,28 @@ class PMPSwitch(BaseSwitch):
 
     def report_key(self, msg):
         self.parent_server.receive_message(msg)
+
+class PPMPSwitch(PMPSwitch):
+    def __init__(self, *args):
+        super().__init__(*args)
+        q = 0
+        for attr in self.queries_by_attr:
+            p_sum = 0
+            for query in self.queries_by_attr[attr]:
+                p_sum += query.p
+            q = max(q, p_sum)
+        self.q = q
+
+        for attr in self.queries_by_attr:
+            new_grouped_queries = []
+            for query in self.queries_by_attr[attr]:
+                new_query = Query(query.p/q, query.m, query.n, query.raw_query) 
+                new_grouped_queries.append(new_query)
+            self.queries_by_attr[attr] = new_grouped_queries
+
+    def report_key(self, msg):
+        if flip_weighted_coin(self.q):
+            self.parent_server.receive_message(msg)
 
 def build_standalone_switches(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
     server = EchoServer()

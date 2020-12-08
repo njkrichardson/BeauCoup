@@ -56,6 +56,9 @@ def flip_coin():
     # Flips a random coin.
     return bool(random.randint(0,1))
 
+def flip_weighted_coin(bias=0.5):
+    return (random.random() < bias)
+
 def table_size(table):
     total = 0
     for k in table:
