@@ -24,7 +24,7 @@ def _max_coupons(query : tuple) -> tuple:
 
     return feasible_probs, max_coupons
 
-def expected_draws(m, p, n): 
+def _expected_draws(m, p, n): 
     draws = 0 
     for j in range(n): 
         draws += 1/(p*(m-j))
@@ -36,7 +36,7 @@ def _get_reasonable_configs(feasible_probs : list, max_coupons : list, threshold
         for m in range(1, int(m_q)): 
             for n in range(1, m+1): 
                 assert 1 <= n and n <= m and m <= m_q, "somethings not right..." 
-                e_draws = expected_draws(m, p_q, n)
+                e_draws = _expected_draws(m, p_q, n)
                 if 0.95 * threshold < e_draws < 1.05 * threshold: # TODO: relax this if no reasonable config is found
                     configs += ((m, p_q, n),)
     return configs

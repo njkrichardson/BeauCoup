@@ -1,6 +1,7 @@
 from collections import namedtuple # TODO yeah yeah 
 from glob import glob 
 import os 
+import random 
 import sys 
 from warnings import warn
 
@@ -8,7 +9,9 @@ import pyshark
 from pyshark import FileCapture as capture
 from tqdm import tqdm 
 
-from constants import DATA_PATH
+from constants import DATA_PATH, PICARD
+
+random.seed(2305, version=2) 
 
 Packet = namedtuple('Packet', ['source', 'destination', 'timestamp'])
 PKT = pyshark.packet.packet.Packet
@@ -51,8 +54,6 @@ def count(arr):
 
 def flip_coin():
     # Flips a random coin.
-    # It would be nice to make this deterministic but pseudorandom,
-    # so that our code has no truly random components.
     return bool(random.randint(0,1))
 
 def table_size(table):
