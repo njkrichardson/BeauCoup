@@ -14,19 +14,19 @@ except:
 logger.addHandler(file_handler)
 
 def build_zeroerror(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
-    server = ZeroErrorServer(key_funcs, attr_funcs, raw_queries)
+    server = ZeroErrorServer(key_funcs, attr_funcs, raw_queries, lambda *args: None) # Placeholder alert functions until further development.
     switches = [ZeroErrorSwitch(server) for i in range(n)]
     return switches, server
 
 def build_standalone_switches(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
+    server = EchoServer(lambda *args: None)
     queries = compile_queries(raw_queries) 
-    switches = [SingleStandaloneSwitch(key_funcs, attr_funcs, queries) for i in range(n)]
-    server = EchoServer()
+    switches = [SingleStandaloneSwitch(server, key_funcs, attr_funcs, queries) for i in range(n)]
     return switches, server
 
 def build_pmp(key_funcs: list, attr_funcs: list, raw_queries, n: int = 1):
     queries = compile_queries(raw_queries)
-    server = PMPServer()
+    server = PMPServer(lambda *args: None)
     switches = [PMPSwitch(server, key_funcs, attr_funcs, queries) for i in range(n)]
     return switches, server
 

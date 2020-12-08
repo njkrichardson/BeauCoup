@@ -25,9 +25,9 @@ parser.add_argument('--query_class', type=str, default='all', help='which class 
 parser.add_argument('--n_switches', type=int, default=1, help='number of switches to simulate (a positive integer)')
 parser.add_argument('--n_packets', type=int, default=int(10e4), help='number of packets to simulate (a positive integer)')
 parser.add_argument('--system_type', type=str, default='Standalone', choices=build_functions.keys(), help='which system of servers and switches to simulate')
-parser.add_argument('--query_class', type=str, default='all', help='which class of query configurations to use')
-parser.add_argument('--n_switches', type=int, default=1, help='number of switches to simulate')
-parser.add_argument('--n_packets', type=int, default=int(10e4), help='number of packets to simulate')
+# parser.add_argument('--query_class', type=str, default='all', help='which class of query configurations to use')
+# parser.add_argument('--n_switches', type=int, default=1, help='number of switches to simulate')
+# parser.add_argument('--n_packets', type=int, default=int(10e4), help='number of packets to simulate')
 args = parser.parse_args()
 
 if __name__ == "__main__":
