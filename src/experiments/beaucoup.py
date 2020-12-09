@@ -3,9 +3,11 @@ import collections
 import logging 
 import random
 import pdb 
+import pickle 
 
 import numpy as np 
 import matplotlib.pyplot as plt 
+from tqdm import tqdm 
 
 import configure_paths
 from packet import Packet, parse_packet_stream
@@ -36,10 +38,10 @@ if __name__ == "__main__":
     query_set = {'set_1', 'set_2', 'set_3', 'set_4'}
 
     results = () 
-    n_packet_range = [int(1e2), int(1e3), int(1e4)]
+    n_packet_range = [int(1e4), int(3e4), int(5e4)]
     n_queries_range = [2] 
     for build_name, build_func in build_functions.items(): 
-        for q_class in query_set: 
+        for q_class in tqdm(query_set): 
             for n_packets in n_packet_range: 
                 for n_queries in n_queries_range: 
                     key_funcs, attr_funcs = default_query_configs(q_class, n_queries)
@@ -51,9 +53,12 @@ if __name__ == "__main__":
 
                     memory_used, messages_used, mean_relative_error = manifest_world(build_func, key_funcs, attr_funcs, raw_queries, args.n_switches, n_packets)
                     results += ((build_name, q_class,  n_packets, n_queries, memory_used, messages_used, mean_relative_error),)
-    pdb.set_trace()
+
+    with open('results.pickle', 'wb') as f:
+            pickle.dump(results, f)
 
     # visuals 
+    colormap = dict(set_1='r', set_2='b', set_3='y', set_4='g')
     n_sub = 2
     fig, axs = plt.subplots(nrows=n_sub)
     axs[0].set_title('Number of packets versus memory usage') 
@@ -94,13 +99,15 @@ if __name__ == "__main__":
         standalone_packets_vs_messages = np.array(standalone_packets_vs_messages)
         zeroerror_packets_vs_messages = np.array(zeroerror_packets_vs_messages)
 
-        axs[0].scatter(pmp_packets_vs_memory[:, 0], pmp_packets_vs_memory[:, 1])
-        axs[0].scatter(ppmp_packets_vs_memory[:, 0], ppmp_packets_vs_memory[:, 1])
+        axs[0].scatter(pmp_packets_vs_memory[:, 0], pmp_packets_vs_memory[:, 1], label='pmp' + q_class_ref)
+        axs[0].scatter(ppmp_packets_vs_memory[:, 0], ppmp_packets_vs_memory[:, 1], label='ppmp' + q_class_ref)
 
-        axs[1].scatter(pmp_packets_vs_messages[:, 0], pmp_packets_vs_messages[:, 1])
-        axs[1].scatter(ppmp_packets_vs_messages[:, 0], ppmp_packets_vs_messages[:, 1])
-        axs[1].scatter(standalone_packets_vs_messages[:, 0], standalone_packets_vs_messages[:, 1])
-        axs[1].scatter(zeroerror_packets_vs_messages[:, 0], zeroerror_packets_vs_messages[:, 1])
+        axs[1].scatter(pmp_packets_vs_messages[:, 0], pmp_packets_vs_messages[:, 1], label='pmp' + q_class_ref)
+        axs[1].scatter(ppmp_packets_vs_messages[:, 0], ppmp_packets_vs_messages[:, 1], label='ppmp' + q_class_ref)
+        axs[1].scatter(standalone_packets_vs_messages[:, 0], standalone_packets_vs_messages[:, 1], label='standalone' + q_class_ref)
+        axs[1].scatter(zeroerror_packets_vs_messages[:, 0], zeroerror_packets_vs_messages[:, 1], label='zeroerror' + q_class_ref)
+
+    plt.legend()
     plt.show() 
 
         
