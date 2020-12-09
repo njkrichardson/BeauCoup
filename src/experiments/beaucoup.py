@@ -50,9 +50,11 @@ if __name__ == "__main__":
                         t_range = (50, 100)
                         m_activation = random.randint(70, 80)/100
                         raw_queries.append(RawQuery(i, i, random.randint(*t_range), m_activation, f'query_{i}'))
-
-                    memory_used, messages_used, mean_relative_error = manifest_world(build_func, key_funcs, attr_funcs, raw_queries, args.n_switches, n_packets)
-                    results += ((build_name, q_class,  n_packets, n_queries, memory_used, messages_used, mean_relative_error),)
+                    try: 
+                        memory_used, messages_used, mean_relative_error = manifest_world(build_func, key_funcs, attr_funcs, raw_queries, args.n_switches, n_packets)
+                        results += ((build_name, q_class,  n_packets, n_queries, memory_used, messages_used, mean_relative_error),)
+                    except: 
+                        continue 
 
     with open('results.pickle', 'wb') as f:
             pickle.dump(results, f)

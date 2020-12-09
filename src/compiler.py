@@ -61,7 +61,7 @@ def compiler(raw_query: RawQuery) -> tuple:
     try: 
         print(configs[0])
     except: 
-        pdb.set_trace() 
+        #pdb.set_trace() 
     print(np.sqrt(configs[0][2]))
     (m, p, n) = configs[0][1]
     return (m, p, n) 
