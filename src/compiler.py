@@ -42,15 +42,20 @@ def _variance(m, p, n):
 
 def _get_reasonable_configs(feasible_probs : list, max_coupons : list, threshold: int) -> list: 
     configs = () 
+    best = (1, 1, 1), np.inf
     for p_q, m_q in zip(feasible_probs, max_coupons): 
         for m in range(1, int(m_q)): 
             for n in range(1, m+1): 
                 assert 1 <= n and n <= m and m <= m_q, "somethings not right..." 
                 e_draws = _expected_draws(m, p_q, n)
+                log_error = np.abs(np.log(e_draws)-np.log(threshold))
                 if 0.95 * threshold < e_draws < 1.05 * threshold: # TODO: relax this if no reasonable config is found
-                    log_error = np.abs(np.log(e_draws)-np.log(threshold))
                     var = _variance(m, p_q, n)
                     configs += ((log_error, (m, p_q, n), var),)
+                if log_error <= best[1]:
+                    best = (m, p_q, n), log_error
+    if len(configs) == 0:
+        configs = [best[0]]
     return configs
 
 def compiler(raw_query: RawQuery) -> tuple: 
