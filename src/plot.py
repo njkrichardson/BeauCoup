@@ -30,14 +30,15 @@ for i, build in enumerate(['PMP', 'PPMP']):
     for query in query_set: 
         pkts_v_memory = get_spec(build, query, (2, 5), results)
         pkts_v_messages = get_spec(build, query, (2, 4), results) 
-        axs[0].plot(pkts_v_memory[:, 0], pkts_v_memory[:, 1], c=col)
-        axs[1].plot(pkts_v_messages[:, 0], pkts_v_messages[:, 1], c=col)
+        axs[0].plot(pkts_v_memory[:, 0], pkts_v_memory[:, 1], c=col, label=f'{build} {query}')
+        axs[1].plot(pkts_v_messages[:, 0], pkts_v_messages[:, 1], c=col, label=f'{build} {query}')
 
 for j, build in enumerate(['Standalone', 'ZeroError']): 
     col = build_colors[j+2]
     for query in query_set: 
         pkts_v_messages = get_spec(build, query, (2, 4), results)
-        axs[1].plot(pkts_v_messages[:, 0], pkts_v_messages[:, 1], c=col)
+        axs[1].plot(pkts_v_messages[:, 0], pkts_v_messages[:, 1], c=col, label=f'{build} {query}')
+plt.legend()
 plt.show() 
 
 
